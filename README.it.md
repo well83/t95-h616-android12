@@ -11,8 +11,8 @@ L'immagine pronta da flashare è nelle [Releases](../../releases).
 
 ## Perché
 
-Il firmware originale del mio T95 era infetto: il software preinstallato installava app da solo e si
-collegava a server remoti. Invece di ripulirlo, ho ricompilato Android 12 da zero partendo da sorgenti
+Il firmware originale del T95 è infetto: il software preinstallato installa app da solo e si collega a
+server remoti. Invece di ripulirlo, ho ricompilato Android 12 da zero partendo da sorgenti
 pubblici.
 
 ## Cosa contiene

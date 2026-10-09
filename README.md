@@ -11,8 +11,8 @@ The ready-to-flash image is in [Releases](../../releases).
 
 ## Why
 
-The stock firmware of my T95 was infected: preinstalled software installed apps by itself and talked to
-remote servers. Instead of cleaning it, I rebuilt Android 12 from scratch, starting from published sources.
+The stock T95 firmware is infected: preinstalled software installs apps by itself and talks to remote
+servers. Instead of cleaning it, I rebuilt Android 12 from scratch, starting from published sources.
 
 ## What's inside
 
