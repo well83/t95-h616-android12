@@ -1,0 +1,98 @@
+diff -ruN a/device/softwinner/apollo/apollo-t95/overlay/frameworks/base/core/res/res/values/config.xml b/device/softwinner/apollo/apollo-t95/overlay/frameworks/base/core/res/res/values/config.xml
+--- a/device/softwinner/apollo/apollo-t95/overlay/frameworks/base/core/res/res/values/config.xml	1970-01-01 01:00:00.000000000 +0100
++++ b/device/softwinner/apollo/apollo-t95/overlay/frameworks/base/core/res/res/values/config.xml	2026-10-09 12:54:36.892152451 +0200
+@@ -0,0 +1,12 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- T95: значения framework (приоритет над device/softwinner/apollo/common/overlay) -->
++<resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
++    <!-- долгое нажатие power (пульт): меню Выключить/Перезагрузить вместо немедленного выключения (у AW: 3).
++         Выключить = fake poweroff: BL31 уходит в standby, включение с пульта. -->
++    <integer name="config_longPressOnPowerBehavior">1</integer>
++    <!-- пункты меню: только выключение и перезагрузка (без «Экстренного вызова») -->
++    <string-array translatable="false" name="config_globalActionsList">
++        <item>power</item>
++        <item>restart</item>
++    </string-array>
++</resources>
+diff -ruN a/device/softwinner/apollo/apollo-t95/sepolicy/property_contexts b/device/softwinner/apollo/apollo-t95/sepolicy/property_contexts
+--- a/device/softwinner/apollo/apollo-t95/sepolicy/property_contexts	2026-10-09 12:54:17.657044371 +0200
++++ b/device/softwinner/apollo/apollo-t95/sepolicy/property_contexts	2026-10-09 12:54:36.890311894 +0200
+@@ -14,3 +14,4 @@
+ persist.sys.gain2               u:object_r:vendor_audio_prop:s0 exact string
+ persist.sys.gain3               u:object_r:vendor_audio_prop:s0 exact string
+ ro.spk_dul.used                 u:object_r:vendor_audio_prop:s0 exact string
++audio.routing                   u:object_r:vendor_audio_prop:s0 exact string
+diff -ruN a/device/softwinner/apollo/apollo-t95/sepolicy/t95.te b/device/softwinner/apollo/apollo-t95/sepolicy/t95.te
+--- a/device/softwinner/apollo/apollo-t95/sepolicy/t95.te	2026-10-09 12:54:17.657110344 +0200
++++ b/device/softwinner/apollo/apollo-t95/sepolicy/t95.te	2026-10-09 12:54:36.890311894 +0200
+@@ -49,3 +49,6 @@
+ 
+ # HAL CEC читает hdmi.cec.debug каждые 2 с: теперь с меткой vendor_t95_hwc_prop (property_contexts), get_prop выше
+ # FLauncher (Flutter) читает /proc/sys/vm/max_map_count: AOSP запрещает приложениям, безвредно -> оставлено
++
++# installd при старте пытается писать в общий узел device (tasks memcg/blkio на tmpfs /dev): безвредно -> dontaudit
++dontaudit installd device:file write;
+diff -ruN a/device/softwinner/apollo/apollo-t95/t95/fd655.rc b/device/softwinner/apollo/apollo-t95/t95/fd655.rc
+--- a/device/softwinner/apollo/apollo-t95/t95/fd655.rc	2026-10-09 12:54:17.657164289 +0200
++++ b/device/softwinner/apollo/apollo-t95/t95/fd655.rc	2026-10-09 12:54:36.890311894 +0200
+@@ -3,3 +3,8 @@
+     class late_start
+     user root
+     group system wakelock
++
++# «Выключить» (fake poweroff, BL31 уходит в standby): FD655 сохранил бы последнее изображение -> гасим
++on shutdown
++    stop fd655
++    exec - root -- /vendor/bin/fd655.sh off
+diff -ruN a/frameworks/base/packages/SystemUI/res/drawable/global_actions_lite_button_tv.xml b/frameworks/base/packages/SystemUI/res/drawable/global_actions_lite_button_tv.xml
+--- a/frameworks/base/packages/SystemUI/res/drawable/global_actions_lite_button_tv.xml	1970-01-01 01:00:00.000000000 +0100
++++ b/frameworks/base/packages/SystemUI/res/drawable/global_actions_lite_button_tv.xml	2026-10-09 12:54:36.910920860 +0200
+@@ -0,0 +1,11 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- T95 (ТВ): кнопка меню выключения с белой рамкой, когда на ней фокус пульта -->
++<selector xmlns:android="http://schemas.android.com/apk/res/android">
++    <item android:state_focused="true">
++        <shape android:shape="oval">
++            <solid android:color="@color/global_actions_lite_button_background"/>
++            <stroke android:width="4dp" android:color="@android:color/white"/>
++        </shape>
++    </item>
++    <item android:drawable="@drawable/global_actions_lite_button"/>
++</selector>
+diff -ruN a/frameworks/base/packages/SystemUI/res/layout/global_actions_grid_item_lite.xml b/frameworks/base/packages/SystemUI/res/layout/global_actions_grid_item_lite.xml
+--- a/frameworks/base/packages/SystemUI/res/layout/global_actions_grid_item_lite.xml	2026-10-09 12:54:17.660509941 +0200
++++ b/frameworks/base/packages/SystemUI/res/layout/global_actions_grid_item_lite.xml	2026-10-09 12:54:36.908309523 +0200
+@@ -30,7 +30,8 @@
+             android:padding="@dimen/global_actions_button_padding"
+             android:scaleType="centerInside"
+             android:tint="@color/global_actions_lite_text"
+-            android:background="@drawable/global_actions_lite_button"/>
++            android:duplicateParentState="true"
++            android:background="@drawable/global_actions_lite_button_tv"/>
+         <TextView
+             android:id="@*android:id/message"
+             android:layout_width="match_parent"
+diff -ruN a/frameworks/base/packages/SystemUI/src/com/android/systemui/globalactions/GlobalActionsDialogLite.java b/frameworks/base/packages/SystemUI/src/com/android/systemui/globalactions/GlobalActionsDialogLite.java
+--- a/frameworks/base/packages/SystemUI/src/com/android/systemui/globalactions/GlobalActionsDialogLite.java	2026-10-09 12:54:17.660645176 +0200
++++ b/frameworks/base/packages/SystemUI/src/com/android/systemui/globalactions/GlobalActionsDialogLite.java	2026-10-09 12:54:36.907904911 +0200
+@@ -1337,6 +1337,8 @@
+             Action action = getItem(position);
+             View view = action.create(mContext, convertView, parent, LayoutInflater.from(mContext));
+             view.setOnClickListener(v -> onClickItem(position));
++            // T95 (ТВ): кнопки доступны стрелками пульта
++            view.setFocusable(true);
+             if (action instanceof LongPressAction) {
+                 view.setOnLongClickListener(v -> onLongClickItem(position));
+             }
+@@ -2376,6 +2378,11 @@
+             mSysUiState.setFlag(SYSUI_STATE_GLOBAL_ACTIONS_SHOWING, true)
+                     .commitUpdate(mContext.getDisplayId());
+ 
++            // T95 (ТВ): первая кнопка выбрана сразу при открытии. Контейнер focusable (касание снаружи =
++            // закрыть) и забрал бы фокус себе: стрелками потом в кнопки не попасть -> сначала дочерние
++            mGlobalActionsLayout.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
++            mGlobalActionsLayout.post(() -> mGlobalActionsLayout.requestFocus());
++
+             ViewGroup root = (ViewGroup) mGlobalActionsLayout.getRootView();
+             root.setOnApplyWindowInsetsListener((v, windowInsets) -> {
+                 root.setPadding(windowInsets.getStableInsetLeft(),

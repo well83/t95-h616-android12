@@ -1,0 +1,10 @@
+# never commit images, keys or build output
+*.img
+*.zip
+*.tar.gz
+*.pk8
+*.pem
+*.x509.pem
+*.key
+keys/
+out/

@@ -1,0 +1,256 @@
+[English](README.md) · [Русский](README.ru.md) · **Italiano**
+
+# Android 12 pulito per il T95 (Allwinner H616)
+
+Android 12 (TV) per il TV box T95 H616 (il mio è un iconBIT TRS2048), compilato dai sorgenti ufficiali
+Orange Pi Zero 3 (`H618-Android12-Src`, BSP Allwinner, kernel 5.4.125) e portato sul T95.
+Niente app inutili, niente malware, con le patch di sicurezza AOSP.
+
+Questo repository contiene **le patch e gli strumenti** per ricompilare il firmware dai sorgenti.
+L'immagine pronta da flashare è nelle [Releases](../../releases).
+
+## Perché
+
+Il firmware originale del mio T95 era infetto: il software preinstallato installava app da solo e si
+collegava a server remoti. Invece di ripulirlo, ho ricompilato Android 12 da zero partendo da sorgenti
+pubblici.
+
+## Cosa contiene
+
+- Android 12 (TV), 64 bit, build **user / release-keys**
+- SELinux **enforcing** (il firmware originale e l'SDK Allwinner usano permissive)
+- Patch di sicurezza AOSP **android-security-12.0.0_r34 → r69** (gennaio 2025) su 27 progetti (Bluetooth,
+  frameworks/av, frameworks/base, webp, freetype, libxml2, skia, …). Livello patch **2025-01-01**: vale
+  solo per il framework, kernel e parte vendor restano quelli di Allwinner.
+- Tutte le app di sistema e il secure boot (toc0/toc1/vbmeta) sono firmati con **le mie chiavi**, non con
+  le chiavi pubbliche dell'SDK Allwinner che chiunque può usare
+- Launcher **FLauncher** (fork osrosal 2025.07.001), con l'animazione di evidenziazione delle schede spenta
+  di default. Se è accesa, il launcher ridisegna a 60 fps e tiene un core al ~95%.
+- App: **F-Droid**, **SmartTube**, **VLC**, **Material Files**, **Downloader** (AFTVnews) e
+  **Cromite 153** come WebView (al posto del vecchio WebView AOSP 91)
+- Telecomando IR (accende anche il box dalla sospensione), display frontale FD655 (orologio e icone
+  LAN/Wi-Fi/USB), nome dispositivo `T95_h616`
+- **Spegnimento dal telecomando**: la pressione lunga di power apre il menu *Spegni / Riavvia*, che si
+  naviga con le frecce del telecomando. *Spegni* spegne HDMI e display e mette il box in attesa; si riaccende
+  col tasto power del telecomando. Con il codice Allwinner originale il T95 si riavviava invece di spegnersi
+  (vedi [Spegnimento](#spegnimento)).
+
+Niente servizi Google (GApps). Le app si installano da F-Droid, Aurora Store (disponibile su F-Droid)
+o Downloader.
+
+### Cosa è stato tolto
+
+- Falle Allwinner: **adb root in rete senza autorizzazione** (porta 5555 aperta a tutta la rete locale),
+  `runin.sh` (eseguiva come root comandi da un file su `/sdcard`), `preinstall` / `preloaddata`
+  (installazione silenziosa di APK all'avvio), `appsdisable`, `fix_traceing` e `platform_app` con
+  `mlstrustedsubject`
+- 26 app: test di fabbrica e demo Allwinner (Test_AD, che cambia logo e animazione di avvio; DragonBox,
+  DragonAgingTV, DragonAtt, AwlogSettings, TvdFileManager, VideoPlayer, Update) e app inutili su una TV
+  (EasterEgg, Traceur, LiveTv, DeskClock, PhotoTable, WebScreensaver, Contacts, Calendar, Camera2, Music,
+  SoundRecorder, ExactCalculator, QuickSearchBox, SimAppDialog, WAPPushManager, NfcNci, SecureElement)
+
+## Hardware provato
+
+iconBIT TRS2048 / T95, Allwinner H616, 4 GB RAM, PMIC **AXP806**, Wi-Fi/BT **UWE5622**,
+Ethernet AC200 (100 Mbit).
+
+**Funziona:** avvio, HDMI 1080p, Ethernet, Wi-Fi 2,4/5 GHz, Bluetooth (cassa A2DP), decodifica video
+hardware (SmartTube VP9, VLC H.264 4K), GPU Mali-G31, telecomando IR, sospensione/risveglio e
+spegnimento/accensione dal telecomando, display FD655, entrambe le USB.
+**Non provato:** audio via HDMI, CEC.
+
+> [!WARNING]
+> I T95 escono con RAM, PMIC e chip Wi-Fi diversi. Su un'altra revisione della scheda questo firmware
+> potrebbe non avviarsi. Vedi [Tornare indietro](#tornare-al-firmware-originale-o-a-un-altro).
+
+## Come flashare
+
+1. **Salva il firmware attuale**, se ce l'hai, oppure trova quello originale della tua revisione.
+2. Servono un cavo USB A-A (maschio-maschio) e PhoenixSuit (Windows) o OpenixSuit (Linux).
+3. Scarica `update.opi-t95-a12-b14-user.img.xz` dalle [Releases](../../releases) e decomprimilo
+   (7-Zip su Windows, `xz -d` su Linux), poi seleziona `update.opi-t95-a12-b14-user.img` e scegli il flash completo (Full Erase).
+4. A box spento tieni premuto il tasto reset (dentro il jack AV), collega l'USB al PC e rilascia il tasto
+   dopo 3–5 s: il flash parte.
+5. Il primo avvio richiede circa 1–2 minuti.
+
+Senza cavo si può usare una microSD preparata con PhoenixCard (modalità *Product*).
+**Il flash cancella tutti i dati del box.**
+
+### Tornare al firmware originale o a un altro
+
+Questo firmware **non scrive chiavi negli eFuse** (niente rotpk: il bootloader stampa
+`don't have rotpk, skip check`), quindi il box non resta legato alle mie chiavi. Puoi flashare in qualsiasi
+momento il firmware originale o un altro firmware T95 in formato secure (toc0/toc1) nello stesso modo.
+La modalità FEL (tasto reset + USB) sta nella ROM del SoC e non si può cancellare, quindi il box si può
+sempre recuperare.
+
+> [!IMPORTANT]
+> **Secure bit.** L'immagine è in formato secure: durante il flash il bootloader stampa
+> `burn sboot ok, set secure bit`. Sul mio box, come sulla maggior parte dei T95 H616 col firmware
+> originale, il SoC era già in modalità secure di fabbrica, quindi non cambia nulla. Se però il tuo box è
+> stato venduto con un firmware **non secure**, il flash attiva la modalità secure **per sempre**: da quel
+> momento il box avvia solo firmware secure (toc0/toc1), firmati con qualsiasi chiave. Per verificarlo
+> prima del flash: il firmware originale è secure se la sua immagine contiene `toc0.fex`/`toc1.fex` (e non
+> solo boot0/u-boot), oppure guarda il log UART.
+
+## Note d'uso
+
+- **adb solo in rete**. Vai in *Impostazioni → Preferenze dispositivo → Info*, premi 7 volte *Build*, poi
+  apri *Opzioni sviluppatore* e attiva *Debug USB*. `adbd` ascolta allora sulla porta 5555:
+  `adb connect <ip-del-box>:5555`, poi conferma il computer sullo schermo col telecomando. adb è spento
+  di default. Via cavo USB adb non funziona perché la porta USB0 del T95 è solo host (manca il pin ID);
+  il cavo A-A serve solo per il flash.
+- La pressione breve di power mette il box in sospensione, quella lunga apre il menu di spegnimento.
+  *Spegni* è uno standby profondo dentro BL31, non un distacco completo dell'alimentazione: l'alimentatore
+  resta sotto tensione e il box si riaccende dal telecomando. Per togliere del tutto la corrente, stacca
+  l'alimentatore.
+- Al primo avvio il Bluetooth può partire con ~5 s di ritardo; si riprende da solo.
+- Downloader (AFTVnews) è un'app gratuita a codice chiuso con pubblicità (AdMob/Meta). Se non la vuoi,
+  disinstalla gli aggiornamenti o disattivala.
+- FLauncher è ricompilato e firmato con la mia chiave, quindi gli aggiornamenti del suo autore non si
+  installano sopra. Si aggiorna insieme al firmware.
+- È una build user: niente root e niente shell sulla UART.
+
+## Compilare dai sorgenti
+
+### Base
+
+I sorgenti ufficiali Orange Pi Zero 3 **H618-Android12-Src** (Google Drive di Orange Pi, 13/07/2023,
+archivio `H618-Android12-Src.tar.gz{aa..ar}`; l'md5 della cartella Orange Pi coincide).
+Nei sorgenti la scheda Zero 3 si chiama **p2** (prodotto `apollo_p2`). Le patch aggiungono la nuova scheda
+**t95** e il nuovo prodotto **apollo_t95**. Macchina di compilazione: Ubuntu 22.04.
+
+**Le chiavi di firma non sono incluse.** Generane di tue (`tools/gen_app_keys.sh` per le chiavi delle app,
+`dragonsecboot` per le `toc_keys`).
+
+### File
+
+| File | Contenuto |
+|---|---|
+| `patches/01-longan-board-t95-vs-p2.patch` | scheda `t95` = copia di `configs/p2` (Zero 3) + modifiche: `board.dts` del kernel (AXP806, eMMC DDR52, gmac1 + AC200, LED, VBUS PH8, USB0 host, IR fe02, OPP…), `sys_config.fex` (DRAM dal T95 originale), `uboot-board.dts` |
+| `patches/03a-device-apollo-t95-vs-p2.patch` | dispositivo `apollo-t95` = copia di `apollo-p2` + modifiche (BoardConfig, sepolicy, FD655, mappa tasti IR, HDMI 1080p, RRO NetworkStack, overlay WebView, `apps/Android.mk`) |
+| `patches/03b-product-apollo_t95-vs-p2.patch` | `apollo_t95.mk` = copia di `apollo_p2.mk` + modifiche |
+| `patches/04-aw-fixes-64bit-security.patch` | correzioni Allwinner: build a 64 bit (moduli che dipendono da blob a 32 bit → 32 bit, printf/tipi, dump ABI, HDR10+), sicurezza (adb in rete senza autorizzazione, `platform_app mlstrustedsubject`, `service_contexts`, `/dev/watchdog`), `AndroidProducts.mk`, `pack4dist`, livello patch 2025-01-01 |
+| `patches/05-aosp-security-r34-r69.patch` | patch di sicurezza AOSP android-security-12.0.0_r34 → r69 (27 progetti), con i conflitti risolti e `make update-api`. Contiene anche una riga T95 in `system/bt/btif/src/btif_dm.cc` (nome BT da `bluetooth.device.default_name`) |
+| `patches/06-flauncher-v2025.07.001-t95.patch` | [FLauncher](https://github.com/osrosal/flauncher) (tag v2025.07.001): animazione di evidenziazione spenta di default. Build: Flutter 3.24.5, JDK 17, `flutter build apk --release --split-per-abi --target-platform android-arm64` |
+| `patches/08-poweroff-menu-t95.patch` | spegnimento e menu: pressione lunga di power = menu Spegni/Riavvia (overlay `apollo-t95` `config.xml`); pulsanti di SystemUI `GlobalActionsDialogLite` selezionabili con le frecce del telecomando (focus, bordo bianco); FD655 spento allo spegnimento (`fd655.rc` on shutdown); SELinux: audio.routing, dontaudit installd |
+| `patches/07-kernel-5.4.302-experimental/` | **esperimento, non incluso nella release**: vedi [Kernel](#kernel) |
+| `tools/bl31_t95_patch.py` | crea `bin/bl31_t95.bin` da `bl31.bin`: salta il "hardware check" che accetta solo H618 (0x1F4C) e aggiunge lo spegnimento vero (PSCI SYSTEM_OFF, 0x1CF0..0x1D00) |
+| `tools/t95_board_dts.py` | genera il `board.dts` t95 da quello p2 (il risultato è già nella patch 01) |
+| `tools/t95_sys_config.py` | genera il `sys_config.fex` t95 da quello p2 + il `sys_config.fex` del T95 originale |
+| `tools/gen_app_keys.sh` | genera le tue chiavi delle app (platform/media/shared/networkstack/releasekey) |
+
+I commenti dentro patch e strumenti sono in russo (il progetto è stato pubblicato prima su 4PDA).
+
+### Procedura
+
+Clona il repository accanto alla cartella estratta `H618-Android12-Src`:
+
+```sh
+git clone https://github.com/well83/t95-h616-android12.git
+cd H618-Android12-Src
+cp -a longan/device/config/chips/h618/configs/p2 longan/device/config/chips/h618/configs/t95
+cp -a device/softwinner/apollo/apollo-p2 device/softwinner/apollo/apollo-t95
+cp    device/softwinner/apollo/apollo_p2.mk device/softwinner/apollo/apollo_t95.mk
+for p in 01 03a 03b 04 05 08; do git apply -p1 ../t95-h616-android12/patches/$p-*.patch; done   # oppure patch -p1 < ...
+python3 ../t95-h616-android12/tools/bl31_t95_patch.py longan/device/config/chips/h618/bin/bl31.bin \
+        longan/device/config/chips/h618/bin/bl31_t95.bin
+```
+
+Gli APK delle app vanno in `device/softwinner/apollo/apollo-t95/apps/<Nome>/`. Estrai le librerie native
+di ogni APK in `apps/<Nome>/lib/arm64/`; vedi `apps/Android.mk`, che riporta anche lo SHA-256 di ogni APK:
+FLauncher (compilato con la patch 06), MaterialFiles 1.7.5 (F-Droid), CromiteWebView 153.0.8010.37 (arm64
+SystemWebView), SmartTube 32.56 stable, VLC 3.7.1 arm64, Downloader 2.0.4 (+ `split_config.*`),
+F-Droid 2.0.1.
+
+Chiavi: metti le tue `toc_keys` in `vendor/security/toc_keys` (secure boot, vbmeta) e genera le tue chiavi
+delle app:
+
+```sh
+bash ../t95-h616-android12/tools/gen_app_keys.sh $PWD /un/posto/sicuro
+```
+
+Compilazione:
+
+```sh
+cd longan && ./build.sh autoconfig -o android -i h618 -b t95 -n default -k linux-5.4 -a arm64 && ./build.sh && cd ..
+source build/envsetup.sh && lunch apollo_t95-user && make -j10 && pack4dist -v
+# immagine: longan/out/h618_android12_t95_uart0_secure_v0.img
+```
+
+> [!NOTE]
+> Non mandare l'output di `./build.sh` in una pipe (`| grep`, `| head`): la compilazione si blocca.
+
+### Kernel
+
+La build di rilascio **non** modifica il codice del kernel: usa il kernel Allwinner 5.4.125 di
+H618-Android12-Src così com'è. Il kernel si adatta al T95 solo con la configurazione della scheda in longan
+(patch 01):
+
+- `linux-5.4/board.dts` (generato da `tools/t95_board_dts.py`): AXP806 al posto di AXP1530, eMMC DDR52,
+  gmac1/AC200 (twi3, PA10/11), LED PH6/7, VBUS PH8, USB0 host, IR fe02/0x40, OPP, rilevamento SD su PI16.
+  Il dtb compilato è stato confrontato con il `sunxi_t95.dtb` originale del box.
+- `sys_config.fex` (`tools/t95_sys_config.py`): DRAM/twi/gpio_bias dall'originale, alimentazione AXP806.
+- `uboot-board.dts`: boot_clock 1008, AXP806, `sdc_io_1v8=0`. `pack` **non** unisce `sys_config` nel DT di
+  U-Boot, quindi i valori per U-Boot vanno scritti direttamente in `uboot-board.dts`.
+- BL31: il `bl31.bin` dell'SDK non parte su H616 per un controllo che accetta solo H618, quindi
+  `tools/bl31_t95_patch.py` lo modifica. Lo stesso strumento aggiunge la correzione dello spegnimento
+  descritta sotto.
+
+`patches/07-kernel-5.4.302-experimental/` è un **esperimento** di aggiornamento del kernel alla 5.4.302.
+Il kernel Allwinner è Android Common Kernel (ACK) android12-5.4 + il BSP Allwinner, quindi l'aggiornamento
+si fa con `git merge` del ramo ACK, non con delle patch:
+
+- `merge-ack-5.4.302.sh` scarica ACK (~3–4 GB, storia da 05/2021), crea il ramo `aw-base` (commit ACK
+  73e6d86c3, il più vicino al kernel AW, + albero AW), fa il merge di android12-5.4.302_r00 (250657e3e),
+  risolve 11 conflitti e applica 0001/0002.
+- `resolved/` contiene i file dopo la risoluzione dei conflitti.
+- Il risultato si avvia e funziona tutto (eth, Wi-Fi, BT, Mali, HDMI, IR, FD655, cpufreq), **ma**
+  all'uscita dalla sospensione il sistema si blocca durante la reinizializzazione della eMMC e il watchdog
+  lo resetta. Riportare `drivers/mmc/core` alla versione AW non è servito. Serve un bisect; i contributi
+  sono benvenuti.
+
+```sh
+bash patches/07-kernel-5.4.302-experimental/merge-ack-5.4.302.sh longan/kernel/linux-5.4 ~/k302
+rsync -a --delete --exclude=.git ~/k302/linux-5.4/ longan/kernel/linux-5.4/
+```
+
+L'albero AW deve essere pulito (appena estratto, mai compilato).
+
+### Spegnimento
+
+Lo schema *fake poweroff* di Allwinner funziona così:
+
+1. Il kernel (`CONFIG_SUNXI_FAKE_POWEROFF`) scrive 0xe in RTC GPR[2].
+2. BL31 SYSTEM_OFF lo cambia in 2 e resetta il SoC.
+3. U-Boot (`CONFIG_ATF_BOX_STANDBY`) chiama la SMC 0x8000ff14.
+4. BL31 legge GPR[2]==2 e `/box_start_os0` dal DT, poi entra in standby con risveglio da IR.
+
+Sul T95 questo **non funziona**: qualsiasi reset azzera tutto il dominio RTC (tutti i GPR, ora riportata
+al 1970, ALARM0_DAY=0), quindi il flag si perde e il box semplicemente si riavviava. Non c'è un SCP
+separato, nemmeno nel firmware originale: lo standby gira tutto dentro BL31 (codice in SRAM A2 a 0x20000).
+
+La correzione (`tools/bl31_t95_patch.py`): in PSCI SYSTEM_OFF, quando GPR[2]==0xe, BL31 chiama **subito**
+lo standby del box (funzione 0x1B2C con il DT salvato), senza reset. Quando il telecomando risveglia il
+box, BL31 resetta e il box fa un normale avvio a freddo (i GPR sono già vuoti). Kernel e U-Boot non sono
+modificati.
+
+## Sicurezza e chiavi
+
+**Non pubblico e non condivido le mie chiavi di firma.** In questo modo nessun altro può distribuire un
+"aggiornamento" per i box che usano questo firmware. Se compili una tua immagine, genera chiavi tue.
+
+## Licenze
+
+- Le patch ad AOSP, al BSP Allwinner e ai device tree seguono la licenza dei file che modificano
+  (soprattutto Apache-2.0; il kernel e i file in `patches/07-kernel-5.4.302-experimental/resolved/` sono
+  GPL-2.0).
+- `patches/06-flauncher-v2025.07.001-t95.patch` è una modifica a FLauncher, che è GPL-3.0.
+- Gli strumenti in `tools/` e la documentazione sono sotto Apache-2.0 (vedi [LICENSE](LICENSE)).
+- Le app preinstallate nell'immagine non sono modificate (tranne FLauncher) e mantengono licenze e firme
+  dei loro autori.
+
+## Ringraziamenti
+
+Orange Pi (sorgenti H618 Android 12), BSP Allwinner, osrosal (FLauncher) e gli autori di SmartTube, VLC,
+F-Droid, Material Files e Cromite.

@@ -1,0 +1,1007 @@
+From 7e4651bad9841cc652b15641d66237572e42a51d Mon Sep 17 00:00:00 2001
+From: t95 <t95@local>
+Date: Sat, 3 Oct 2026 17:49:13 +0200
+Subject: [PATCH 2/2] T95: drivers/mmc/core + include/linux/mmc/mmc.h =
+ версия AW (5.4.125): с ядром MMC 5.4.302 переинициализация eMMC после
+ сна вешает систему (сброс watchdog)
+
+---
+ drivers/mmc/core/block.c     | 119 +++++++++--------------------------
+ drivers/mmc/core/bus.c       |   2 -
+ drivers/mmc/core/core.c      |  51 ++++-----------
+ drivers/mmc/core/core.h      |   1 -
+ drivers/mmc/core/host.c      |  28 ++-------
+ drivers/mmc/core/mmc.c       |   2 -
+ drivers/mmc/core/mmc_ops.c   |  30 +++++----
+ drivers/mmc/core/mmc_ops.h   |   2 -
+ drivers/mmc/core/mmc_test.c  |  12 ++--
+ drivers/mmc/core/quirks.h    |  14 -----
+ drivers/mmc/core/sd.c        |  16 ++---
+ drivers/mmc/core/sdio.c      |  20 +-----
+ drivers/mmc/core/sdio_bus.c  |  20 ++----
+ drivers/mmc/core/sdio_cis.c  |  12 ++++
+ drivers/mmc/core/slot-gpio.c |   6 +-
+ include/linux/mmc/mmc.h      |   2 +-
+ 16 files changed, 93 insertions(+), 244 deletions(-)
+
+diff --git a/drivers/mmc/core/block.c b/drivers/mmc/core/block.c
+index 20b33e155..6ec28419b 100644
+--- a/drivers/mmc/core/block.c
++++ b/drivers/mmc/core/block.c
+@@ -255,7 +255,6 @@ static ssize_t power_ro_lock_store(struct device *dev,
+ 		goto out_put;
+ 	}
+ 	req_to_mmc_queue_req(req)->drv_op = MMC_DRV_OP_BOOT_WP;
+-	req_to_mmc_queue_req(req)->drv_op_result = -EIO;
+ 	blk_execute_rq(mq->queue, NULL, req, 0);
+ 	ret = req_to_mmc_queue_req(req)->drv_op_result;
+ 	blk_put_request(req);
+@@ -351,10 +350,6 @@ struct mmc_blk_ioc_data {
+ 	struct mmc_ioc_cmd ic;
+ 	unsigned char *buf;
+ 	u64 buf_bytes;
+-	unsigned int flags;
+-#define MMC_BLK_IOC_DROP	BIT(0)	/* drop this mrq */
+-#define MMC_BLK_IOC_SBC	BIT(1)	/* use mrq.sbc */
+-
+ 	struct mmc_rpmb_data *rpmb;
+ };
+ 
+@@ -364,7 +359,7 @@ static struct mmc_blk_ioc_data *mmc_blk_ioctl_copy_from_user(
+ 	struct mmc_blk_ioc_data *idata;
+ 	int err;
+ 
+-	idata = kzalloc(sizeof(*idata), GFP_KERNEL);
++	idata = kmalloc(sizeof(*idata), GFP_KERNEL);
+ 	if (!idata) {
+ 		err = -ENOMEM;
+ 		goto out;
+@@ -500,7 +495,7 @@ static int card_busy_detect(struct mmc_card *card, unsigned int timeout_ms,
+ }
+ 
+ static int __mmc_blk_ioctl_cmd(struct mmc_card *card, struct mmc_blk_data *md,
+-			       struct mmc_blk_ioc_data **idatas, int i)
++			       struct mmc_blk_ioc_data *idata)
+ {
+ 	struct mmc_command cmd = {}, sbc = {};
+ 	struct mmc_data data = {};
+@@ -508,18 +503,10 @@ static int __mmc_blk_ioctl_cmd(struct mmc_card *card, struct mmc_blk_data *md,
+ 	struct scatterlist sg;
+ 	int err;
+ 	unsigned int target_part;
+-	struct mmc_blk_ioc_data *idata = idatas[i];
+-	struct mmc_blk_ioc_data *prev_idata = NULL;
+ 
+ 	if (!card || !md || !idata)
+ 		return -EINVAL;
+ 
+-	if (idata->flags & MMC_BLK_IOC_DROP)
+-		return 0;
+-
+-	if (idata->flags & MMC_BLK_IOC_SBC && i > 0)
+-		prev_idata = idatas[i - 1];
+-
+ 	/*
+ 	 * The RPMB accesses comes in from the character device, so we
+ 	 * need to target these explicitly. Else we just target the
+@@ -586,7 +573,7 @@ static int __mmc_blk_ioctl_cmd(struct mmc_card *card, struct mmc_blk_data *md,
+ 			return err;
+ 	}
+ 
+-	if (idata->rpmb || prev_idata) {
++	if (idata->rpmb) {
+ 		sbc.opcode = MMC_SET_BLOCK_COUNT;
+ 		/*
+ 		 * We don't do any blockcount validation because the max size
+@@ -594,8 +581,6 @@ static int __mmc_blk_ioctl_cmd(struct mmc_card *card, struct mmc_blk_data *md,
+ 		 * 'Reliable Write' bit here.
+ 		 */
+ 		sbc.arg = data.blocks | (idata->ic.write_flag & BIT(31));
+-		if (prev_idata)
+-			sbc.arg = prev_idata->ic.arg;
+ 		sbc.flags = MMC_RSP_R1 | MMC_CMD_AC;
+ 		mrq.sbc = &sbc;
+ 	}
+@@ -612,16 +597,6 @@ static int __mmc_blk_ioctl_cmd(struct mmc_card *card, struct mmc_blk_data *md,
+ 	}
+ 
+ 	mmc_wait_for_req(card->host, &mrq);
+-	memcpy(&idata->ic.response, cmd.resp, sizeof(cmd.resp));
+-
+-	if (prev_idata) {
+-		memcpy(&prev_idata->ic.response, sbc.resp, sizeof(sbc.resp));
+-		if (sbc.error) {
+-			dev_err(mmc_dev(card->host), "%s: sbc error %d\n",
+-							__func__, sbc.error);
+-			return sbc.error;
+-		}
+-	}
+ 
+ 	if (cmd.error) {
+ 		dev_err(mmc_dev(card->host), "%s: cmd error %d\n",
+@@ -671,6 +646,8 @@ static int __mmc_blk_ioctl_cmd(struct mmc_card *card, struct mmc_blk_data *md,
+ 	if (idata->ic.postsleep_min_us)
+ 		usleep_range(idata->ic.postsleep_min_us, idata->ic.postsleep_max_us);
+ 
++	memcpy(&(idata->ic.response), cmd.resp, sizeof(cmd.resp));
++
+ 	if (idata->rpmb || (cmd.flags & MMC_RSP_R1B) == MMC_RSP_R1B) {
+ 		/*
+ 		 * Ensure RPMB/R1B command has completed by polling CMD13
+@@ -718,7 +695,6 @@ static int mmc_blk_ioctl_cmd(struct mmc_blk_data *md,
+ 	idatas[0] = idata;
+ 	req_to_mmc_queue_req(req)->drv_op =
+ 		rpmb ? MMC_DRV_OP_IOCTL_RPMB : MMC_DRV_OP_IOCTL;
+-	req_to_mmc_queue_req(req)->drv_op_result = -EIO;
+ 	req_to_mmc_queue_req(req)->drv_op_data = idatas;
+ 	req_to_mmc_queue_req(req)->ioc_count = 1;
+ 	blk_execute_rq(mq->queue, NULL, req, 0);
+@@ -788,7 +764,6 @@ static int mmc_blk_ioctl_multi_cmd(struct mmc_blk_data *md,
+ 	}
+ 	req_to_mmc_queue_req(req)->drv_op =
+ 		rpmb ? MMC_DRV_OP_IOCTL_RPMB : MMC_DRV_OP_IOCTL;
+-	req_to_mmc_queue_req(req)->drv_op_result = -EIO;
+ 	req_to_mmc_queue_req(req)->drv_op_data = idata;
+ 	req_to_mmc_queue_req(req)->ioc_count = num_of_cmds;
+ 	blk_execute_rq(mq->queue, NULL, req, 0);
+@@ -879,11 +854,9 @@ static const struct block_device_operations mmc_bdops = {
+ static int mmc_blk_part_switch_pre(struct mmc_card *card,
+ 				   unsigned int part_type)
+ {
+-	const unsigned int mask = EXT_CSD_PART_CONFIG_ACC_MASK;
+-	const unsigned int rpmb = EXT_CSD_PART_CONFIG_ACC_RPMB;
+ 	int ret = 0;
+ 
+-	if ((part_type & mask) == rpmb) {
++	if (part_type == EXT_CSD_PART_CONFIG_ACC_RPMB) {
+ 		if (card->ext_csd.cmdq_en) {
+ 			ret = mmc_cmdq_disable(card);
+ 			if (ret)
+@@ -898,11 +871,9 @@ static int mmc_blk_part_switch_pre(struct mmc_card *card,
+ static int mmc_blk_part_switch_post(struct mmc_card *card,
+ 				    unsigned int part_type)
+ {
+-	const unsigned int mask = EXT_CSD_PART_CONFIG_ACC_MASK;
+-	const unsigned int rpmb = EXT_CSD_PART_CONFIG_ACC_RPMB;
+ 	int ret = 0;
+ 
+-	if ((part_type & mask) == rpmb) {
++	if (part_type == EXT_CSD_PART_CONFIG_ACC_RPMB) {
+ 		mmc_retune_unpause(card->host);
+ 		if (card->reenable_cmdq && !card->ext_csd.cmdq_en)
+ 			ret = mmc_cmdq_enable(card);
+@@ -1066,20 +1037,6 @@ static inline void mmc_blk_reset_success(struct mmc_blk_data *md, int type)
+ 	md->reset_done &= ~type;
+ }
+ 
+-static void mmc_blk_check_sbc(struct mmc_queue_req *mq_rq)
+-{
+-	struct mmc_blk_ioc_data **idata = mq_rq->drv_op_data;
+-	int i;
+-
+-	for (i = 1; i < mq_rq->ioc_count; i++) {
+-		if (idata[i - 1]->ic.opcode == MMC_SET_BLOCK_COUNT &&
+-		    mmc_op_multi(idata[i]->ic.opcode)) {
+-			idata[i - 1]->flags |= MMC_BLK_IOC_DROP;
+-			idata[i]->flags |= MMC_BLK_IOC_SBC;
+-		}
+-	}
+-}
+-
+ /*
+  * The non-block commands come back from the block layer after it queued it and
+  * processed it with all other requests and then they get issued in this
+@@ -1102,27 +1059,16 @@ static void mmc_blk_issue_drv_op(struct mmc_queue *mq, struct request *req)
+ 
+ 	switch (mq_rq->drv_op) {
+ 	case MMC_DRV_OP_IOCTL:
+-		if (card->ext_csd.cmdq_en) {
+-			ret = mmc_cmdq_disable(card);
+-			if (ret)
+-				break;
+-		}
+-
+-		mmc_blk_check_sbc(mq_rq);
+-
+-		fallthrough;
+ 	case MMC_DRV_OP_IOCTL_RPMB:
+ 		idata = mq_rq->drv_op_data;
+ 		for (i = 0, ret = 0; i < mq_rq->ioc_count; i++) {
+-			ret = __mmc_blk_ioctl_cmd(card, md, idata, i);
++			ret = __mmc_blk_ioctl_cmd(card, md, idata[i]);
+ 			if (ret)
+ 				break;
+ 		}
+ 		/* Always switch back to main area after RPMB access */
+ 		if (rpmb_ioctl)
+ 			mmc_blk_part_switch(card, 0);
+-		else if (card->reenable_cmdq && !card->ext_csd.cmdq_en)
+-			mmc_cmdq_enable(card);
+ 		break;
+ 	case MMC_DRV_OP_BOOT_WP:
+ 		ret = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL, EXT_CSD_BOOT_WP,
+@@ -1179,7 +1125,7 @@ static void mmc_blk_issue_discard_rq(struct mmc_queue *mq, struct request *req)
+ 					 card->erase_arg == MMC_TRIM_ARG ?
+ 					 INAND_CMD38_ARG_TRIM :
+ 					 INAND_CMD38_ARG_ERASE,
+-					 card->ext_csd.generic_cmd6_time);
++					 0);
+ 		}
+ 		if (!err)
+ 			err = mmc_erase(card, from, nr, card->erase_arg);
+@@ -1221,7 +1167,7 @@ static void mmc_blk_issue_secdiscard_rq(struct mmc_queue *mq,
+ 				 arg == MMC_SECURE_TRIM1_ARG ?
+ 				 INAND_CMD38_ARG_SECTRIM1 :
+ 				 INAND_CMD38_ARG_SECERASE,
+-				 card->ext_csd.generic_cmd6_time);
++				 0);
+ 		if (err)
+ 			goto out_retry;
+ 	}
+@@ -1239,7 +1185,7 @@ static void mmc_blk_issue_secdiscard_rq(struct mmc_queue *mq,
+ 			err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
+ 					 INAND_CMD38_ARG_EXT_CSD,
+ 					 INAND_CMD38_ARG_SECTRIM2,
+-					 card->ext_csd.generic_cmd6_time);
++					 0);
+ 			if (err)
+ 				goto out_retry;
+ 		}
+@@ -1515,8 +1461,6 @@ static void mmc_blk_cqe_complete_rq(struct mmc_queue *mq, struct request *req)
+ 			blk_mq_requeue_request(req, true);
+ 		else
+ 			__blk_mq_end_request(req, BLK_STS_OK);
+-	} else if (mq->in_recovery) {
+-		blk_mq_requeue_request(req, true);
+ 	} else {
+ 		blk_mq_end_request(req, BLK_STS_OK);
+ 	}
+@@ -1549,7 +1493,8 @@ void mmc_blk_cqe_recovery(struct mmc_queue *mq)
+ 	err = mmc_cqe_recovery(host);
+ 	if (err)
+ 		mmc_blk_reset(mq->blkdata, host, MMC_BLK_CQE_RECOVERY);
+-	mmc_blk_reset_success(mq->blkdata, MMC_BLK_CQE_RECOVERY);
++	else
++		mmc_blk_reset_success(mq->blkdata, MMC_BLK_CQE_RECOVERY);
+ 
+ 	pr_debug("%s: CQE recovery done\n", mmc_hostname(host));
+ }
+@@ -1748,31 +1693,31 @@ static void mmc_blk_read_single(struct mmc_queue *mq, struct request *req)
+ 	struct mmc_card *card = mq->card;
+ 	struct mmc_host *host = card->host;
+ 	blk_status_t error = BLK_STS_OK;
++	int retries = 0;
+ 
+ 	do {
+ 		u32 status;
+ 		int err;
+-		int retries = 0;
+ 
+-		while (retries++ <= MMC_READ_SINGLE_RETRIES) {
+-			mmc_blk_rw_rq_prep(mqrq, card, 1, mq);
++		mmc_blk_rw_rq_prep(mqrq, card, 1, mq);
++
++		mmc_wait_for_req(host, mrq);
+ 
+-			mmc_wait_for_req(host, mrq);
++		err = mmc_send_status(card, &status);
++		if (err)
++			goto error_exit;
+ 
+-			err = mmc_send_status(card, &status);
++		if (!mmc_host_is_spi(host) &&
++		    !mmc_blk_in_tran_state(status)) {
++			err = mmc_blk_fix_state(card, req);
+ 			if (err)
+ 				goto error_exit;
++		}
+ 
+-			if (!mmc_host_is_spi(host) &&
+-			    !mmc_blk_in_tran_state(status)) {
+-				err = mmc_blk_fix_state(card, req);
+-				if (err)
+-					goto error_exit;
+-			}
++		if (mrq->cmd->error && retries++ < MMC_READ_SINGLE_RETRIES)
++			continue;
+ 
+-			if (!mrq->cmd->error)
+-				break;
+-		}
++		retries = 0;
+ 
+ 		if (mrq->cmd->error ||
+ 		    mrq->data->error ||
+@@ -2079,14 +2024,14 @@ static void mmc_blk_mq_poll_completion(struct mmc_queue *mq,
+ 	mmc_blk_urgent_bkops(mq, mqrq);
+ }
+ 
+-static void mmc_blk_mq_dec_in_flight(struct mmc_queue *mq, enum mmc_issue_type issue_type)
++static void mmc_blk_mq_dec_in_flight(struct mmc_queue *mq, struct request *req)
+ {
+ 	unsigned long flags;
+ 	bool put_card;
+ 
+ 	spin_lock_irqsave(&mq->lock, flags);
+ 
+-	mq->in_flight[issue_type] -= 1;
++	mq->in_flight[mmc_issue_type(mq, req)] -= 1;
+ 
+ 	put_card = (mmc_tot_in_flight(mq) == 0);
+ 
+@@ -2098,7 +2043,6 @@ static void mmc_blk_mq_dec_in_flight(struct mmc_queue *mq, enum mmc_issue_type i
+ 
+ static void mmc_blk_mq_post_req(struct mmc_queue *mq, struct request *req)
+ {
+-	enum mmc_issue_type issue_type = mmc_issue_type(mq, req);
+ 	struct mmc_queue_req *mqrq = req_to_mmc_queue_req(req);
+ 	struct mmc_request *mrq = &mqrq->brq.mrq;
+ 	struct mmc_host *host = mq->card->host;
+@@ -2114,7 +2058,7 @@ static void mmc_blk_mq_post_req(struct mmc_queue *mq, struct request *req)
+ 	else
+ 		blk_mq_complete_request(req);
+ 
+-	mmc_blk_mq_dec_in_flight(mq, issue_type);
++	mmc_blk_mq_dec_in_flight(mq, req);
+ }
+ 
+ void mmc_blk_mq_recovery(struct mmc_queue *mq)
+@@ -2852,7 +2796,6 @@ static int mmc_dbg_card_status_get(void *data, u64 *val)
+ 	if (IS_ERR(req))
+ 		return PTR_ERR(req);
+ 	req_to_mmc_queue_req(req)->drv_op = MMC_DRV_OP_GET_CARD_STATUS;
+-	req_to_mmc_queue_req(req)->drv_op_result = -EIO;
+ 	blk_execute_rq(mq->queue, NULL, req, 0);
+ 	ret = req_to_mmc_queue_req(req)->drv_op_result;
+ 	if (ret >= 0) {
+@@ -2891,7 +2834,6 @@ static int mmc_ext_csd_open(struct inode *inode, struct file *filp)
+ 		goto out_free;
+ 	}
+ 	req_to_mmc_queue_req(req)->drv_op = MMC_DRV_OP_GET_EXT_CSD;
+-	req_to_mmc_queue_req(req)->drv_op_result = -EIO;
+ 	req_to_mmc_queue_req(req)->drv_op_data = &ext_csd;
+ 	blk_execute_rq(mq->queue, NULL, req, 0);
+ 	err = req_to_mmc_queue_req(req)->drv_op_result;
+@@ -3199,3 +3141,4 @@ module_exit(mmc_blk_exit);
+ 
+ MODULE_LICENSE("GPL");
+ MODULE_DESCRIPTION("Multimedia Card (MMC) block device driver");
++
+diff --git a/drivers/mmc/core/bus.c b/drivers/mmc/core/bus.c
+index fc81e2f61..28501f165 100644
+--- a/drivers/mmc/core/bus.c
++++ b/drivers/mmc/core/bus.c
+@@ -134,8 +134,6 @@ static void mmc_bus_shutdown(struct device *dev)
+ 	if (dev->driver && drv->shutdown)
+ 		drv->shutdown(card);
+ 
+-	__mmc_stop_host(host);
+-
+ 	if (host->bus_ops->shutdown) {
+ 		ret = host->bus_ops->shutdown(host);
+ 		if (ret)
+diff --git a/drivers/mmc/core/core.c b/drivers/mmc/core/core.c
+index 4c4a30eef..fda517c14 100644
+--- a/drivers/mmc/core/core.c
++++ b/drivers/mmc/core/core.c
+@@ -565,27 +565,22 @@ int mmc_cqe_recovery(struct mmc_host *host)
+ 	host->cqe_ops->cqe_recovery_start(host);
+ 
+ 	memset(&cmd, 0, sizeof(cmd));
+-	cmd.opcode       = MMC_STOP_TRANSMISSION;
+-	cmd.flags        = MMC_RSP_R1B | MMC_CMD_AC;
++	cmd.opcode       = MMC_STOP_TRANSMISSION,
++	cmd.flags        = MMC_RSP_R1B | MMC_CMD_AC,
+ 	cmd.flags       &= ~MMC_RSP_CRC; /* Ignore CRC */
+-	cmd.busy_timeout = MMC_CQE_RECOVERY_TIMEOUT;
+-	mmc_wait_for_cmd(host, &cmd, MMC_CMD_RETRIES);
+-
+-	mmc_poll_for_busy(host->card, MMC_CQE_RECOVERY_TIMEOUT, true, true);
++	cmd.busy_timeout = MMC_CQE_RECOVERY_TIMEOUT,
++	mmc_wait_for_cmd(host, &cmd, 0);
+ 
+ 	memset(&cmd, 0, sizeof(cmd));
+ 	cmd.opcode       = MMC_CMDQ_TASK_MGMT;
+ 	cmd.arg          = 1; /* Discard entire queue */
+ 	cmd.flags        = MMC_RSP_R1B | MMC_CMD_AC;
+ 	cmd.flags       &= ~MMC_RSP_CRC; /* Ignore CRC */
+-	cmd.busy_timeout = MMC_CQE_RECOVERY_TIMEOUT;
+-	err = mmc_wait_for_cmd(host, &cmd, MMC_CMD_RETRIES);
++	cmd.busy_timeout = MMC_CQE_RECOVERY_TIMEOUT,
++	err = mmc_wait_for_cmd(host, &cmd, 0);
+ 
+ 	host->cqe_ops->cqe_recovery_finish(host);
+ 
+-	if (err)
+-		err = mmc_wait_for_cmd(host, &cmd, MMC_CMD_RETRIES);
+-
+ 	mmc_retune_release(host);
+ 
+ 	return err;
+@@ -959,14 +954,11 @@ int mmc_execute_tuning(struct mmc_card *card)
+ 
+ 	err = host->ops->execute_tuning(host, opcode);
+ 
+-	if (err) {
++	if (err)
+ 		pr_err("%s: tuning execution failed: %d\n",
+ 			mmc_hostname(host), err);
+-	} else {
+-		host->retune_now = 0;
+-		host->need_retune = 0;
++	else
+ 		mmc_retune_enable(host);
+-	}
+ 
+ 	return err;
+ }
+@@ -1153,13 +1145,7 @@ u32 mmc_select_voltage(struct mmc_host *host, u32 ocr)
+ 		mmc_power_cycle(host, ocr);
+ 	} else {
+ 		bit = fls(ocr) - 1;
+-		/*
+-		 * The bit variable represents the highest voltage bit set in
+-		 * the OCR register.
+-		 * To keep a range of 2 values (e.g. 3.2V/3.3V and 3.3V/3.4V),
+-		 * we must shift the mask '3' with (bit - 1).
+-		 */
+-		ocr &= 3 << (bit - 1);
++		ocr &= 3 << bit;
+ 		if (bit != host->ios.vdd)
+ 			dev_warn(mmc_dev(host), "exceeding card's volts\n");
+ 	}
+@@ -1564,11 +1550,6 @@ void mmc_init_erase(struct mmc_card *card)
+ 		card->pref_erase = 0;
+ }
+ 
+-static bool is_trim_arg(unsigned int arg)
+-{
+-	return (arg & MMC_TRIM_OR_DISCARD_ARGS) && arg != MMC_DISCARD_ARG;
+-}
+-
+ static unsigned int mmc_mmc_erase_timeout(struct mmc_card *card,
+ 				          unsigned int arg, unsigned int qty)
+ {
+@@ -1900,7 +1881,7 @@ int mmc_erase(struct mmc_card *card, unsigned int from, unsigned int nr,
+ 	    !(card->ext_csd.sec_feature_support & EXT_CSD_SEC_ER_EN))
+ 		return -EOPNOTSUPP;
+ 
+-	if (mmc_card_mmc(card) && is_trim_arg(arg) &&
++	if (mmc_card_mmc(card) && (arg & MMC_TRIM_ARGS) &&
+ 	    !(card->ext_csd.sec_feature_support & EXT_CSD_SEC_GB_CL_EN))
+ 		return -EOPNOTSUPP;
+ 
+@@ -1930,7 +1911,7 @@ int mmc_erase(struct mmc_card *card, unsigned int from, unsigned int nr,
+ 	 * identified by the card->eg_boundary flag.
+ 	 */
+ 	rem = card->erase_size - (from % card->erase_size);
+-	if ((arg & MMC_TRIM_OR_DISCARD_ARGS) && card->eg_boundary && nr > rem) {
++	if ((arg & MMC_TRIM_ARGS) && (card->eg_boundary) && (nr > rem)) {
+ 		err = mmc_do_erase(card, from, from + rem - 1, arg);
+ 		from += rem;
+ 		if ((err) || (to <= from))
+@@ -2383,11 +2364,8 @@ void mmc_start_host(struct mmc_host *host)
+ 	_mmc_detect_change(host, 0, false);
+ }
+ 
+-void __mmc_stop_host(struct mmc_host *host)
++void mmc_stop_host(struct mmc_host *host)
+ {
+-	if (host->rescan_disable)
+-		return;
+-
+ 	if (host->slot.cd_irq >= 0) {
+ 		mmc_gpio_set_cd_wake(host, false);
+ 		disable_irq(host->slot.cd_irq);
+@@ -2395,11 +2373,6 @@ void __mmc_stop_host(struct mmc_host *host)
+ 
+ 	host->rescan_disable = 1;
+ 	cancel_delayed_work_sync(&host->detect);
+-}
+-
+-void mmc_stop_host(struct mmc_host *host)
+-{
+-	__mmc_stop_host(host);
+ 
+ 	/* clear pm flags now and let card drivers set them as needed */
+ 	host->pm_flags = 0;
+diff --git a/drivers/mmc/core/core.h b/drivers/mmc/core/core.h
+index a6c814fdb..db3c9c688 100644
+--- a/drivers/mmc/core/core.h
++++ b/drivers/mmc/core/core.h
+@@ -69,7 +69,6 @@ static inline void mmc_delay(unsigned int ms)
+ 
+ void mmc_rescan(struct work_struct *work);
+ void mmc_start_host(struct mmc_host *host);
+-void __mmc_stop_host(struct mmc_host *host);
+ void mmc_stop_host(struct mmc_host *host);
+ 
+ void _mmc_detect_change(struct mmc_host *host, unsigned long delay,
+diff --git a/drivers/mmc/core/host.c b/drivers/mmc/core/host.c
+index 25252ef7c..e3bfe2173 100644
+--- a/drivers/mmc/core/host.c
++++ b/drivers/mmc/core/host.c
+@@ -77,18 +77,9 @@ static void mmc_host_classdev_release(struct device *dev)
+ 	kfree(host);
+ }
+ 
+-static int mmc_host_classdev_shutdown(struct device *dev)
+-{
+-	struct mmc_host *host = cls_dev_to_mmc_host(dev);
+-
+-	__mmc_stop_host(host);
+-	return 0;
+-}
+-
+ static struct class mmc_host_class = {
+ 	.name		= "mmc_host",
+ 	.dev_release	= mmc_host_classdev_release,
+-	.shutdown_pre	= mmc_host_classdev_shutdown,
+ 	.pm		= MMC_HOST_CLASS_DEV_PM_OPS,
+ };
+ 
+@@ -112,12 +103,13 @@ void mmc_retune_enable(struct mmc_host *host)
+ 
+ /*
+  * Pause re-tuning for a small set of operations.  The pause begins after the
+- * next command.
++ * next command and after first doing re-tuning.
+  */
+ void mmc_retune_pause(struct mmc_host *host)
+ {
+ 	if (!host->retune_paused) {
+ 		host->retune_paused = 1;
++		mmc_retune_needed(host);
+ 		mmc_retune_hold(host);
+ 	}
+ }
+@@ -497,16 +489,6 @@ struct mmc_host *mmc_alloc_host(int extra, struct device *dev)
+ 
+ EXPORT_SYMBOL(mmc_alloc_host);
+ 
+-static int mmc_validate_host_caps(struct mmc_host *host)
+-{
+-	if (host->caps & MMC_CAP_SDIO_IRQ && !host->ops->enable_sdio_irq) {
+-		dev_warn(host->parent, "missing ->enable_sdio_irq() ops\n");
+-		return -EINVAL;
+-	}
+-
+-	return 0;
+-}
+-
+ /**
+  *	mmc_add_host - initialise host hardware
+  *	@host: mmc host
+@@ -519,9 +501,8 @@ int mmc_add_host(struct mmc_host *host)
+ {
+ 	int err;
+ 
+-	err = mmc_validate_host_caps(host);
+-	if (err)
+-		return err;
++	WARN_ON((host->caps & MMC_CAP_SDIO_IRQ) &&
++		!host->ops->enable_sdio_irq);
+ 
+ 	err = device_add(&host->class_dev);
+ 	if (err)
+@@ -570,7 +551,6 @@ EXPORT_SYMBOL(mmc_remove_host);
+  */
+ void mmc_free_host(struct mmc_host *host)
+ {
+-	cancel_delayed_work_sync(&host->detect);
+ 	mmc_pwrseq_free(host);
+ 	put_device(&host->class_dev);
+ }
+diff --git a/drivers/mmc/core/mmc.c b/drivers/mmc/core/mmc.c
+index f38b5a135..56836ea2d 100644
+--- a/drivers/mmc/core/mmc.c
++++ b/drivers/mmc/core/mmc.c
+@@ -997,12 +997,10 @@ static int mmc_select_bus_width(struct mmc_card *card)
+ 	static unsigned ext_csd_bits[] = {
+ 		EXT_CSD_BUS_WIDTH_8,
+ 		EXT_CSD_BUS_WIDTH_4,
+-		EXT_CSD_BUS_WIDTH_1,
+ 	};
+ 	static unsigned bus_widths[] = {
+ 		MMC_BUS_WIDTH_8,
+ 		MMC_BUS_WIDTH_4,
+-		MMC_BUS_WIDTH_1,
+ 	};
+ 	struct mmc_host *host = card->host;
+ 	unsigned idx, bus_width = 0;
+diff --git a/drivers/mmc/core/mmc_ops.c b/drivers/mmc/core/mmc_ops.c
+index ba0731ab1..09311c2bd 100644
+--- a/drivers/mmc/core/mmc_ops.c
++++ b/drivers/mmc/core/mmc_ops.c
+@@ -19,9 +19,7 @@
+ #include "host.h"
+ #include "mmc_ops.h"
+ 
+-#define MMC_OPS_TIMEOUT_MS		(10 * 60 * 1000) /* 10min*/
+-#define MMC_BKOPS_TIMEOUT_MS		(120 * 1000) /* 120s */
+-#define MMC_CACHE_FLUSH_TIMEOUT_MS	(30 * 1000) /* 30s */
++#define MMC_OPS_TIMEOUT_MS	(10 * 60 * 1000) /* 10 minute timeout */
+ 
+ static const u8 tuning_blk_pattern_4bit[] = {
+ 	0xff, 0x0f, 0xff, 0x00, 0xff, 0xcc, 0xc3, 0xcc,
+@@ -450,8 +448,8 @@ int mmc_switch_status(struct mmc_card *card)
+ 	return __mmc_switch_status(card, true);
+ }
+ 
+-int mmc_poll_for_busy(struct mmc_card *card, unsigned int timeout_ms,
+-		      bool send_status, bool retry_crc_err)
++static int mmc_poll_for_busy(struct mmc_card *card, unsigned int timeout_ms,
++			bool send_status, bool retry_crc_err)
+ {
+ 	struct mmc_host *host = card->host;
+ 	int err;
+@@ -460,6 +458,10 @@ int mmc_poll_for_busy(struct mmc_card *card, unsigned int timeout_ms,
+ 	bool expired = false;
+ 	bool busy = false;
+ 
++	/* We have an unspecified cmd timeout, use the fallback value. */
++	if (!timeout_ms)
++		timeout_ms = MMC_OPS_TIMEOUT_MS;
++
+ 	/*
+ 	 * In cases when not allowed to poll by using CMD13 or because we aren't
+ 	 * capable of polling by using ->card_busy(), then rely on waiting the
+@@ -504,7 +506,6 @@ int mmc_poll_for_busy(struct mmc_card *card, unsigned int timeout_ms,
+ 
+ 	return 0;
+ }
+-EXPORT_SYMBOL_GPL(mmc_poll_for_busy);
+ 
+ /**
+  *	__mmc_switch - modify EXT_CSD register
+@@ -533,12 +534,6 @@ int __mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value,
+ 
+ 	mmc_retune_hold(host);
+ 
+-	if (!timeout_ms) {
+-		pr_warn("%s: unspecified timeout for CMD6 - use generic\n",
+-			mmc_hostname(host));
+-		timeout_ms = card->ext_csd.generic_cmd6_time;
+-	}
+-
+ 	/*
+ 	 * If the cmd timeout and the max_busy_timeout of the host are both
+ 	 * specified, let's validate them. A failure means we need to prevent
+@@ -547,7 +542,7 @@ int __mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value,
+ 	 * which also means they are on their own when it comes to deal with the
+ 	 * busy timeout.
+ 	 */
+-	if (!(host->caps & MMC_CAP_NEED_RSP_BUSY) &&
++	if (!(host->caps & MMC_CAP_NEED_RSP_BUSY) && timeout_ms &&
+ 	    host->max_busy_timeout && (timeout_ms > host->max_busy_timeout))
+ 		use_r1b_resp = false;
+ 
+@@ -559,6 +554,10 @@ int __mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value,
+ 	cmd.flags = MMC_CMD_AC;
+ 	if (use_r1b_resp) {
+ 		cmd.flags |= MMC_RSP_SPI_R1B | MMC_RSP_R1B;
++		/*
++		 * A busy_timeout of zero means the host can decide to use
++		 * whatever value it finds suitable.
++		 */
+ 		cmd.busy_timeout = timeout_ms;
+ 	} else {
+ 		cmd.flags |= MMC_RSP_SPI_R1 | MMC_RSP_R1;
+@@ -944,7 +943,7 @@ void mmc_run_bkops(struct mmc_card *card)
+ 	 * urgent levels by using an asynchronous background task, when idle.
+ 	 */
+ 	err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
+-			 EXT_CSD_BKOPS_START, 1, MMC_BKOPS_TIMEOUT_MS);
++			EXT_CSD_BKOPS_START, 1, MMC_OPS_TIMEOUT_MS);
+ 	if (err)
+ 		pr_warn("%s: Error %d starting bkops\n",
+ 			mmc_hostname(card->host), err);
+@@ -962,8 +961,7 @@ int mmc_flush_cache(struct mmc_card *card)
+ 
+ 	if (mmc_cache_enabled(card->host)) {
+ 		err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
+-				 EXT_CSD_FLUSH_CACHE, 1,
+-				 MMC_CACHE_FLUSH_TIMEOUT_MS);
++				EXT_CSD_FLUSH_CACHE, 1, 0);
+ 		if (err)
+ 			pr_err("%s: cache flush error %d\n",
+ 					mmc_hostname(card->host), err);
+diff --git a/drivers/mmc/core/mmc_ops.h b/drivers/mmc/core/mmc_ops.h
+index 4f36a96b9..8f2f94757 100644
+--- a/drivers/mmc/core/mmc_ops.h
++++ b/drivers/mmc/core/mmc_ops.h
+@@ -31,8 +31,6 @@ int mmc_can_ext_csd(struct mmc_card *card);
+ int mmc_get_ext_csd(struct mmc_card *card, u8 **new_ext_csd);
+ int mmc_switch_status(struct mmc_card *card);
+ int __mmc_switch_status(struct mmc_card *card, bool crc_err_fatal);
+-int mmc_poll_for_busy(struct mmc_card *card, unsigned int timeout_ms,
+-		      bool send_status, bool retry_crc_err);
+ int __mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value,
+ 		unsigned int timeout_ms, unsigned char timing,
+ 		bool use_busy_signal, bool send_status,	bool retry_crc_err);
+diff --git a/drivers/mmc/core/mmc_test.c b/drivers/mmc/core/mmc_test.c
+index 8fcaec554..492dd4596 100644
+--- a/drivers/mmc/core/mmc_test.c
++++ b/drivers/mmc/core/mmc_test.c
+@@ -3097,13 +3097,13 @@ static ssize_t mtf_test_write(struct file *file, const char __user *buf,
+ 	test->buffer = kzalloc(BUFFER_SIZE, GFP_KERNEL);
+ #ifdef CONFIG_HIGHMEM
+ 	test->highmem = alloc_pages(GFP_KERNEL | __GFP_HIGHMEM, BUFFER_ORDER);
+-	if (!test->highmem) {
+-		count = -ENOMEM;
+-		goto free_test_buffer;
+-	}
+ #endif
+ 
++#ifdef CONFIG_HIGHMEM
++	if (test->buffer && test->highmem) {
++#else
+ 	if (test->buffer) {
++#endif
+ 		mutex_lock(&mmc_test_lock);
+ 		mmc_test_run(test, testcase);
+ 		mutex_unlock(&mmc_test_lock);
+@@ -3111,7 +3111,6 @@ static ssize_t mtf_test_write(struct file *file, const char __user *buf,
+ 
+ #ifdef CONFIG_HIGHMEM
+ 	__free_pages(test->highmem, BUFFER_ORDER);
+-free_test_buffer:
+ #endif
+ 	kfree(test->buffer);
+ 	kfree(test);
+@@ -3168,8 +3167,7 @@ static int __mmc_test_register_dbgfs_file(struct mmc_card *card,
+ 	struct mmc_test_dbgfs_file *df;
+ 
+ 	if (card->debugfs_root)
+-		file = debugfs_create_file(name, mode, card->debugfs_root,
+-					   card, fops);
++		debugfs_create_file(name, mode, card->debugfs_root, card, fops);
+ 
+ 	df = kmalloc(sizeof(*df), GFP_KERNEL);
+ 	if (!df) {
+diff --git a/drivers/mmc/core/quirks.h b/drivers/mmc/core/quirks.h
+index 9a253324c..3dba15bcc 100644
+--- a/drivers/mmc/core/quirks.h
++++ b/drivers/mmc/core/quirks.h
+@@ -90,20 +90,6 @@ static const struct mmc_fixup mmc_blk_fixups[] = {
+ 	MMC_FIXUP("VZL00M", CID_MANFID_SAMSUNG, CID_OEMID_ANY, add_quirk_mmc,
+ 		  MMC_QUIRK_SEC_ERASE_TRIM_BROKEN),
+ 
+-	/*
+-	 * Kingston EMMC04G-M627 advertises TRIM but it does not seems to
+-	 * support being used to offload WRITE_ZEROES.
+-	 */
+-	MMC_FIXUP("M62704", CID_MANFID_KINGSTON, 0x0100, add_quirk_mmc,
+-		  MMC_QUIRK_TRIM_BROKEN),
+-
+-	/*
+-	 * Micron MTFC4GACAJCN-1M advertises TRIM but it does not seems to
+-	 * support being used to offload WRITE_ZEROES.
+-	 */
+-	MMC_FIXUP("Q2J54A", CID_MANFID_MICRON, 0x014e, add_quirk_mmc,
+-		  MMC_QUIRK_TRIM_BROKEN),
+-
+ 	/*
+ 	 *  On Some Kingston eMMCs, performing trim can result in
+ 	 *  unrecoverable data conrruption occasionally due to a firmware bug.
+diff --git a/drivers/mmc/core/sd.c b/drivers/mmc/core/sd.c
+index 854f7c6f8..0860203ca 100644
+--- a/drivers/mmc/core/sd.c
++++ b/drivers/mmc/core/sd.c
+@@ -793,14 +793,11 @@ int mmc_sd_get_cid(struct mmc_host *host, u32 ocr, u32 *cid, u32 *rocr)
+ 		return err;
+ 
+ 	/*
+-	 * In case the S18A bit is set in the response, let's start the signal
+-	 * voltage switch procedure. SPI mode doesn't support CMD11.
+-	 * Note that, according to the spec, the S18A bit is not valid unless
+-	 * the CCS bit is set as well. We deliberately deviate from the spec in
+-	 * regards to this, which allows UHS-I to be supported for SDSC cards.
++	 * In case CCS and S18A in the response is set, start Signal Voltage
++	 * Switch procedure. SPI mode doesn't support CMD11.
+ 	 */
+-	if (!mmc_host_is_spi(host) && (ocr & SD_OCR_S18R) &&
+-	    rocr && (*rocr & SD_ROCR_S18A)) {
++	if (!mmc_host_is_spi(host) && rocr &&
++	   ((*rocr & 0x41000000) == 0x41000000)) {
+ 		err = mmc_set_uhs_voltage(host, pocr);
+ 		if (err == -EAGAIN) {
+ 			retries--;
+@@ -1054,7 +1051,7 @@ static int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
+ 					mmc_remove_card(card);
+ 				goto retry;
+ 			}
+-			goto cont;
++			goto done;
+ 		}
+ 	}
+ 
+@@ -1091,7 +1088,6 @@ static int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
+ 		}
+ 	}
+ 
+-cont:
+ 	if (host->cqe_ops && !host->cqe_enabled) {
+ 		err = host->cqe_ops->cqe_enable(host, card);
+ 		if (!err) {
+@@ -1109,7 +1105,7 @@ static int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
+ 		err = -EINVAL;
+ 		goto free_card;
+ 	}
+-
++done:
+ 	host->card = card;
+ 	return 0;
+ 
+diff --git a/drivers/mmc/core/sdio.c b/drivers/mmc/core/sdio.c
+index 2908037a1..0bf33786f 100644
+--- a/drivers/mmc/core/sdio.c
++++ b/drivers/mmc/core/sdio.c
+@@ -379,8 +379,6 @@ static unsigned mmc_sdio_get_max_clock(struct mmc_card *card)
+ 	if (card->type == MMC_TYPE_SD_COMBO)
+ 		max_dtr = min(max_dtr, mmc_sd_get_max_clock(card));
+ 
+-	max_dtr = min_not_zero(max_dtr, card->quirk_max_rate);
+-
+ 	return max_dtr;
+ }
+ 
+@@ -628,8 +626,6 @@ static int mmc_sdio_init_card(struct mmc_host *host, u32 ocr,
+ 	if (host->ops->init_card)
+ 		host->ops->init_card(host, card);
+ 
+-	card->ocr = ocr_card;
+-
+ 	/*
+ 	 * If the host and card support UHS-I mode request the card
+ 	 * to switch to 1.8V signaling level.  No 1.8v signalling if
+@@ -742,7 +738,7 @@ static int mmc_sdio_init_card(struct mmc_host *host, u32 ocr,
+ 			goto mismatch;
+ 		}
+ 	}
+-
++	card->ocr = ocr_card;
+ 	mmc_fixup_device(card, sdio_fixup_methods);
+ 
+ 	if (card->type == MMC_TYPE_SD_COMBO) {
+@@ -868,11 +864,7 @@ static void mmc_sdio_remove(struct mmc_host *host)
+  */
+ static int mmc_sdio_alive(struct mmc_host *host)
+ {
+-	if (!mmc_host_is_spi(host))
+-		return mmc_select_card(host->card);
+-	else
+-		return mmc_io_rw_direct(host->card, 0, 0, SDIO_CCCR_CCCR, 0,
+-					NULL);
++	return mmc_select_card(host->card);
+ }
+ 
+ /*
+@@ -1020,14 +1012,8 @@ static int mmc_sdio_resume(struct mmc_host *host)
+ 		}
+ 		err = mmc_sdio_reinit_card(host);
+ 	} else if (mmc_card_wake_sdio_irq(host)) {
+-		/*
+-		 * We may have switched to 1-bit mode during suspend,
+-		 * need to hold retuning, because tuning only supprt
+-		 * 4-bit mode or 8 bit mode.
+-		 */
+-		mmc_retune_hold_now(host);
++		/* We may have switched to 1-bit mode during suspend */
+ 		err = sdio_enable_4bit_bus(host->card);
+-		mmc_retune_release(host);
+ 	}
+ 
+ 	if (err)
+diff --git a/drivers/mmc/core/sdio_bus.c b/drivers/mmc/core/sdio_bus.c
+index 69eeff7a7..3cc928282 100644
+--- a/drivers/mmc/core/sdio_bus.c
++++ b/drivers/mmc/core/sdio_bus.c
+@@ -266,14 +266,7 @@ static void sdio_release_func(struct device *dev)
+ {
+ 	struct sdio_func *func = dev_to_sdio_func(dev);
+ 
+-	if (!(func->card->quirks & MMC_QUIRK_NONSTD_SDIO))
+-		sdio_free_func_cis(func);
+-
+-	/*
+-	 * We have now removed the link to the tuples in the
+-	 * card structure, so remove the reference.
+-	 */
+-	put_device(&func->card->dev);
++	sdio_free_func_cis(func);
+ 
+ 	kfree(func->info);
+ 	kfree(func->tmpbuf);
+@@ -305,12 +298,6 @@ struct sdio_func *sdio_alloc_func(struct mmc_card *card)
+ 
+ 	device_initialize(&func->dev);
+ 
+-	/*
+-	 * We may link to tuples in the card structure,
+-	 * we need make sure we have a reference to it.
+-	 */
+-	get_device(&func->card->dev);
+-
+ 	func->dev.parent = &card->dev;
+ 	func->dev.bus = &sdio_bus_type;
+ 	func->dev.release = sdio_release_func;
+@@ -364,9 +351,10 @@ int sdio_add_func(struct sdio_func *func)
+  */
+ void sdio_remove_func(struct sdio_func *func)
+ {
+-	if (sdio_func_present(func))
+-		device_del(&func->dev);
++	if (!sdio_func_present(func))
++		return;
+ 
++	device_del(&func->dev);
+ 	of_node_put(func->dev.of_node);
+ 	put_device(&func->dev);
+ }
+diff --git a/drivers/mmc/core/sdio_cis.c b/drivers/mmc/core/sdio_cis.c
+index e45053284..9a5aaac29 100644
+--- a/drivers/mmc/core/sdio_cis.c
++++ b/drivers/mmc/core/sdio_cis.c
+@@ -383,6 +383,12 @@ int sdio_read_func_cis(struct sdio_func *func)
+ 	if (ret)
+ 		return ret;
+ 
++	/*
++	 * Since we've linked to tuples in the card structure,
++	 * we must make sure we have a reference to it.
++	 */
++	get_device(&func->card->dev);
++
+ 	/*
+ 	 * Vendor/device id is optional for function CIS, so
+ 	 * copy it from the card structure as needed.
+@@ -408,5 +414,11 @@ void sdio_free_func_cis(struct sdio_func *func)
+ 	}
+ 
+ 	func->tuples = NULL;
++
++	/*
++	 * We have now removed the link to the tuples in the
++	 * card structure, so remove the reference.
++	 */
++	put_device(&func->card->dev);
+ }
+ 
+diff --git a/drivers/mmc/core/slot-gpio.c b/drivers/mmc/core/slot-gpio.c
+index 3370c5747..582ec3d72 100644
+--- a/drivers/mmc/core/slot-gpio.c
++++ b/drivers/mmc/core/slot-gpio.c
+@@ -63,15 +63,11 @@ int mmc_gpio_alloc(struct mmc_host *host)
+ int mmc_gpio_get_ro(struct mmc_host *host)
+ {
+ 	struct mmc_gpio *ctx = host->slot.handler_priv;
+-	int cansleep;
+ 
+ 	if (!ctx || !ctx->ro_gpio)
+ 		return -ENOSYS;
+ 
+-	cansleep = gpiod_cansleep(ctx->ro_gpio);
+-	return cansleep ?
+-		gpiod_get_value_cansleep(ctx->ro_gpio) :
+-		gpiod_get_value(ctx->ro_gpio);
++	return gpiod_get_value_cansleep(ctx->ro_gpio);
+ }
+ EXPORT_SYMBOL(mmc_gpio_get_ro);
+ 
+diff --git a/include/linux/mmc/mmc.h b/include/linux/mmc/mmc.h
+index 99ae809d7..3219304f2 100644
+--- a/include/linux/mmc/mmc.h
++++ b/include/linux/mmc/mmc.h
+@@ -435,7 +435,7 @@ static inline bool mmc_op_multi(u32 opcode)
+ #define MMC_SECURE_TRIM1_ARG		0x80000001
+ #define MMC_SECURE_TRIM2_ARG		0x80008000
+ #define MMC_SECURE_ARGS			0x80000000
+-#define MMC_TRIM_OR_DISCARD_ARGS	0x00008003
++#define MMC_TRIM_ARGS			0x00008001
+ 
+ #define mmc_driver_type_mask(n)		(1 << (n))
+ 
+-- 
+2.55.0
+

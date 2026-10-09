@@ -1,0 +1,25 @@
+From b31d91dc5a746a075ec018a9cf40397a38548549 Mon Sep 17 00:00:00 2001
+From: t95 <t95@local>
+Date: Sat, 3 Oct 2026 16:28:25 +0200
+Subject: [PATCH 1/2] T95: sun50i-cpufreq-nvmem.c = целиком версия AW
+ (переписан Allwinner, результат merge не компилировался)
+
+---
+ drivers/cpufreq/sun50i-cpufreq-nvmem.c | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/drivers/cpufreq/sun50i-cpufreq-nvmem.c b/drivers/cpufreq/sun50i-cpufreq-nvmem.c
+index f9e150408..6a8cf8650 100644
+--- a/drivers/cpufreq/sun50i-cpufreq-nvmem.c
++++ b/drivers/cpufreq/sun50i-cpufreq-nvmem.c
+@@ -317,7 +317,6 @@ static int sun50i_cpufreq_nvmem_probe(struct platform_device *pdev)
+ 				       &ver_data.version, ver_data.name);
+ 	if (ret)
+ 		return ret;
+-	}
+ 
+ 	for_each_possible_cpu(cpu) {
+ 		struct device *cpu_dev = get_cpu_device(cpu);
+-- 
+2.55.0
+

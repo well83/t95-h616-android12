@@ -1,0 +1,26 @@
+diff --git a/android/app/build.gradle b/android/app/build.gradle
+index f046f89..1435798 100644
+--- a/android/app/build.gradle
++++ b/android/app/build.gradle
+@@ -72,7 +72,7 @@ android {
+             minifyEnabled true
+             shrinkResources true
+             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+-            signingConfig signingConfigs.release
++            signingConfig signingConfigs.debug // T95: подписывается потом сборкой Android (системный ключ)
+         }
+     }
+ 
+diff --git a/lib/providers/settings_service.dart b/lib/providers/settings_service.dart
+index 5539bc6..99a2f20 100644
+--- a/lib/providers/settings_service.dart
++++ b/lib/providers/settings_service.dart
+@@ -39,7 +39,7 @@ class SettingsService extends ChangeNotifier {
+   final SharedPreferences _sharedPreferences;
+ 
+ 
+-  bool get appHighlightAnimationEnabled => _sharedPreferences.getBool(_appHighlightAnimationEnabledKey) ?? true;
++  bool get appHighlightAnimationEnabled => _sharedPreferences.getBool(_appHighlightAnimationEnabledKey) ?? false; // T95: выключена по умолчанию (постоянные 60 fps на A53)
+ 
+   bool get appKeyClickEnabled => _sharedPreferences.getBool(_appKeyClickEnabledKey) ?? true;
+ 

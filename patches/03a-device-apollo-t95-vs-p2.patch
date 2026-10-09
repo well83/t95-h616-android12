@@ -1,0 +1,462 @@
+--- a/device/softwinner/apollo/apollo-t95/apps/Android.mk	1970-01-01 01:00:00.000000000 +0100
++++ b/device/softwinner/apollo/apollo-t95/apps/Android.mk	2026-10-04 10:58:47.316287300 +0200
+@@ -0,0 +1,129 @@
++# T95: сторонние приложения, предустановленные в /product/app, оригинальные APK НЕ изменены (подпись авторов:
++# обновляются через Obtainium/F-Droid как обновления системных приложений). Сжатые нативные библиотеки распакованы
++# сюда в lib/arm64 (системные приложения не распаковывают их при работе). Проверка на вредоносы выполнена.
++LOCAL_PATH := $(call my-dir)
++
++# FLauncher, форк osrosal v2025.07.001, ПЕРЕСОБРАН (патч 06, Flutter 3.24.5): единственное изменение — анимация
++# "App card highlight" выключена по умолчанию. Подписывается сборкой системным ключом (pack4dist: своя releasekey).
++# Оригинал автора: sha256 6e366d96...896f.
++include $(CLEAR_VARS)
++LOCAL_MODULE := FLauncher
++LOCAL_MODULE_CLASS := APPS
++LOCAL_MODULE_SUFFIX := .apk
++LOCAL_SRC_FILES := FLauncher/FLauncher.apk
++LOCAL_CERTIFICATE := testkey
++LOCAL_PRODUCT_MODULE := true
++LOCAL_DEX_PREOPT := false
++LOCAL_ENFORCE_USES_LIBRARIES := false
++LOCAL_MULTILIB := 64
++LOCAL_PREBUILT_JNI_LIBS := FLauncher/lib/arm64/libapp.so FLauncher/lib/arm64/libflutter.so \
++    FLauncher/lib/arm64/libsqlite3.so
++LOCAL_OVERRIDES_PACKAGES := TvLauncher Launcher3 Launcher3QuickStep
++include $(BUILD_PREBUILT)
++
++# Material Files 1.7.5, сборка F-Droid (me.zhanghai.android.files), sha256 2fe900bf...6e8a
++include $(CLEAR_VARS)
++LOCAL_MODULE := MaterialFiles
++LOCAL_MODULE_CLASS := APPS
++LOCAL_MODULE_SUFFIX := .apk
++LOCAL_SRC_FILES := MaterialFiles/MaterialFiles.apk
++LOCAL_REPLACE_PREBUILT_APK_INSTALLED := $(LOCAL_PATH)/MaterialFiles/MaterialFiles.apk
++LOCAL_CERTIFICATE := PRESIGNED
++LOCAL_PRODUCT_MODULE := true
++LOCAL_DEX_PREOPT := false
++LOCAL_ENFORCE_USES_LIBRARIES := false
++LOCAL_MULTILIB := 64
++LOCAL_PREBUILT_JNI_LIBS := MaterialFiles/lib/arm64/libarchive-jni.so MaterialFiles/lib/arm64/libhiddenapi.so \
++    MaterialFiles/lib/arm64/libselinux-jni.so MaterialFiles/lib/arm64/libsyscall.so
++include $(BUILD_PREBUILT)
++
++# Cromite SystemWebView 153.0.8010.37 arm64 (com.android.webview, подпись CromiteOrg), sha256 dcb233a8...baa3
++# вместо WebView AOSP 91 (модуль "webview" из external/chromium-webview). Библиотеки не сжаты
++# (extractNativeLibs=false): загружаются прямо из APK.
++include $(CLEAR_VARS)
++LOCAL_MODULE := CromiteWebView
++LOCAL_MODULE_CLASS := APPS
++LOCAL_MODULE_SUFFIX := .apk
++LOCAL_SRC_FILES := CromiteWebView/CromiteWebView.apk
++LOCAL_REPLACE_PREBUILT_APK_INSTALLED := $(LOCAL_PATH)/CromiteWebView/CromiteWebView.apk
++LOCAL_CERTIFICATE := PRESIGNED
++LOCAL_PRODUCT_MODULE := true
++LOCAL_DEX_PREOPT := false
++LOCAL_ENFORCE_USES_LIBRARIES := false
++LOCAL_OVERRIDES_PACKAGES := webview
++LOCAL_REQUIRED_MODULES := libwebviewchromium_loader libwebviewchromium_plat_support
++include $(BUILD_PREBUILT)
++
++# SmartTube 32.56 stable arm64 (org.smarttube.stable, подпись "Yurii L" 109735aa...), sha256 cc53f1ae...c864
++include $(CLEAR_VARS)
++LOCAL_MODULE := SmartTube
++LOCAL_MODULE_CLASS := APPS
++LOCAL_MODULE_SUFFIX := .apk
++LOCAL_SRC_FILES := SmartTube/SmartTube.apk
++LOCAL_REPLACE_PREBUILT_APK_INSTALLED := $(LOCAL_PATH)/SmartTube/SmartTube.apk
++LOCAL_CERTIFICATE := PRESIGNED
++LOCAL_PRODUCT_MODULE := true
++LOCAL_DEX_PREOPT := false
++LOCAL_ENFORCE_USES_LIBRARIES := false
++LOCAL_MULTILIB := 64
++LOCAL_PREBUILT_JNI_LIBS := SmartTube/lib/arm64/libconscrypt_jni.so SmartTube/lib/arm64/libcronet.105.0.5195.68.so \
++    SmartTube/lib/arm64/libglide-webp.so SmartTube/lib/arm64/libj2v8.so
++include $(BUILD_PREBUILT)
++
++# VLC 3.7.1 arm64 (org.videolan.vlc, подпись VideoLAN c8768d2c...), sha256 bea9ea0c...de74 (= официальный .sha256)
++include $(CLEAR_VARS)
++LOCAL_MODULE := VLC
++LOCAL_MODULE_CLASS := APPS
++LOCAL_MODULE_SUFFIX := .apk
++LOCAL_SRC_FILES := VLC/VLC.apk
++LOCAL_REPLACE_PREBUILT_APK_INSTALLED := $(LOCAL_PATH)/VLC/VLC.apk
++LOCAL_CERTIFICATE := PRESIGNED
++LOCAL_PRODUCT_MODULE := true
++LOCAL_DEX_PREOPT := false
++LOCAL_ENFORCE_USES_LIBRARIES := false
++LOCAL_MULTILIB := 64
++LOCAL_PREBUILT_JNI_LIBS := VLC/lib/arm64/libc++_shared.so VLC/lib/arm64/libmla.so VLC/lib/arm64/libvlc.so \
++    VLC/lib/arm64/libvlcjni.so
++include $(BUILD_PREBUILT)
++
++# Downloader by AFTVnews 2.0.4 (com.esaba.downloader, бандл Play с APKMirror, подпись bf2d3029...; содержит
++# рекламу AdMob/Meta). Разделённое приложение: base + split arm64/it/en/mdpi/hdpi в одной папке (библиотеки
++# не сжаты, в split arm64). Обновляется через Aurora Store.
++DOWNLOADER_SPLITS := split_config.arm64_v8a split_config.it split_config.en split_config.mdpi split_config.hdpi
++include $(CLEAR_VARS)
++LOCAL_MODULE := Downloader
++LOCAL_MODULE_CLASS := APPS
++LOCAL_MODULE_SUFFIX := .apk
++LOCAL_SRC_FILES := Downloader/Downloader.apk
++LOCAL_REPLACE_PREBUILT_APK_INSTALLED := $(LOCAL_PATH)/Downloader/Downloader.apk
++LOCAL_CERTIFICATE := PRESIGNED
++LOCAL_PRODUCT_MODULE := true
++LOCAL_DEX_PREOPT := false
++LOCAL_ENFORCE_USES_LIBRARIES := false
++LOCAL_REQUIRED_MODULES := $(addprefix Downloader_,$(DOWNLOADER_SPLITS))
++include $(BUILD_PREBUILT)
++
++define t95-downloader-split
++include $$(CLEAR_VARS)
++LOCAL_MODULE := Downloader_$(1)
++LOCAL_MODULE_CLASS := ETC
++LOCAL_MODULE_STEM := $(1).apk
++LOCAL_SRC_FILES := Downloader/$(1).apk
++LOCAL_MODULE_PATH := $$(TARGET_OUT_PRODUCT)/app/Downloader
++include $$(BUILD_PREBUILT)
++endef
++$(foreach s,$(DOWNLOADER_SPLITS),$(eval $(call t95-downloader-split,$(s))))
++
++# F-Droid 2.0.1 (org.fdroid.fdroid, официальная подпись "Ciaran Gultnieks" 43238d51...ccab), sha256 83d3fe52...3778
++# обычное приложение (не privileged): каждая установка спрашивает подтверждение; обновляется само. Библиотека не сжата.
++include $(CLEAR_VARS)
++LOCAL_MODULE := FDroid
++LOCAL_MODULE_CLASS := APPS
++LOCAL_MODULE_SUFFIX := .apk
++LOCAL_SRC_FILES := FDroid/FDroid.apk
++LOCAL_REPLACE_PREBUILT_APK_INSTALLED := $(LOCAL_PATH)/FDroid/FDroid.apk
++LOCAL_CERTIFICATE := PRESIGNED
++LOCAL_PRODUCT_MODULE := true
++LOCAL_DEX_PREOPT := false
++LOCAL_ENFORCE_USES_LIBRARIES := false
++include $(BUILD_PREBUILT)
+--- a/device/softwinner/apollo/apollo-t95/BoardConfig.mk	2023-06-16 03:51:04.000000000 +0200
++++ b/device/softwinner/apollo/apollo-t95/BoardConfig.mk	2026-10-03 14:25:37.822661983 +0200
+@@ -3,7 +3,8 @@
+ include $(PRODUCT_PLATFORM_PATH)/BoardConfig.mk
+ 
+ # must include common BoardConfig.mk in the end
+-BOARD_KERNEL_CMDLINE += androidboot.selinux=permissive
++# T95: SELinux enforcing (строка AW "androidboot.selinux=permissive" убрана); правила T95 в apollo-t95/sepolicy
++BOARD_SEPOLICY_DIRS += $(PRODUCT_PLATFORM_PATH)/apollo-t95/sepolicy
+ BOARD_KERNEL_CMDLINE += androidboot.dtbo_idx=0,1,2
+ BOARD_KERNEL_CMDLINE += firmware_class.path=/vendor/etc/firmware
+ 
+--- a/device/softwinner/apollo/apollo-t95/overlay/frameworks/base/core/res/res/xml/config_webview_packages.xml	1970-01-01 01:00:00.000000000 +0100
++++ b/device/softwinner/apollo/apollo-t95/overlay/frameworks/base/core/res/res/xml/config_webview_packages.xml	2026-10-03 14:30:09.860468550 +0200
+@@ -0,0 +1,13 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- T95: провайдеры WebView.
++     1. com.android.webview = Cromite SystemWebView (предустановлен, обновляется через Obtainium, подпись CromiteOrg)
++     2. com.google.android.webview = Google WebView, только если установлен пользователем (напр. Aurora Store); подпись Google
++        (CN=webview, SHA-256 6faf3c41...6fe5) обязательна, т.к. это не системное приложение. Выбирается в
++        Для разработчиков > Сервис WebView. -->
++<webviewproviders>
++    <webviewprovider description="Cromite WebView" packageName="com.android.webview" availableByDefault="true">
++    </webviewprovider>
++    <webviewprovider description="Google WebView" packageName="com.google.android.webview" availableByDefault="true">
++        <signature>MIIDuzCCAqOgAwIBAgIJANi6DgBQG4ZTMA0GCSqGSIb3DQEBBQUAMHQxCzAJBgNVBAYTAlVTMRMwEQYDVQQIDApDYWxpZm9ybmlhMRYwFAYDVQQHDA1Nb3VudGFpbiBWaWV3MRQwEgYDVQQKDAtHb29nbGUgSW5jLjEQMA4GA1UECwwHQW5kcm9pZDEQMA4GA1UEAwwHd2VidmlldzAeFw0xNDA4MDgyMzIwMjBaFw00MTEyMjQyMzIwMjBaMHQxCzAJBgNVBAYTAlVTMRMwEQYDVQQIDApDYWxpZm9ybmlhMRYwFAYDVQQHDA1Nb3VudGFpbiBWaWV3MRQwEgYDVQQKDAtHb29nbGUgSW5jLjEQMA4GA1UECwwHQW5kcm9pZDEQMA4GA1UEAwwHd2VidmlldzCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAMbtaFX0r5aZJMAbPVMAgK1ZZ29dTn91VsGxXv2hqrQo7IpqEy2JmPvPnoMsSiuTAe+UcQy8oKDQ2aYVSAd1DGIy+nSRyFTt3LSIAdwSBkB1qT4a+OqkpsR6bSNXQXQ18lCQu9gREY3h3QlYBQAyzRxw4hRGlrXAzuSz1Ec4W+6x4nLG5DG61MAMR8ClF9XSqbmGB3kyZ70A0X9OPYYxiMWP1ExaYvpaVqjyZZcrPwr+vtW8oCuGBUtHpBUH3OoG+9s2YMcgLG7vCK9awKDqlPcJSpIAAj6uGs4gORmkqxZRMskLSTWbhP4p+3Ap8jYzTVB6Y1/DMVmYTWRMcPW0macCAwEAAaNQME4wHQYDVR0OBBYEFJ6bAR6/QVm4w9LRSGQiaR5Rhp3TMB8GA1UdIwQYMBaAFJ6bAR6/QVm4w9LRSGQiaR5Rhp3TMAwGA1UdEwQFMAMBAf8wDQYJKoZIhvcNAQEFBQADggEBAEQu8QiVxax7/diEiJrgKE1LwdXsIygJK/KnaKdnYEkAQpeu/QmrLiycm+OFbL1qHJIB7OuI/PQBUtcaNSiJSCVgtwtEbZWWIdsynqG/Nf4aGOndXegSQNRH54M05sRHLoeRycPrY7xQlEwGikNFR76+5UdwFBQI3Gn22g6puJnVukQm/wXQ+ajoiS4QclrNlixoDQsZ4STLH4+Wju2wIWKFFArIhVEIlbamq+p6BghuzH3aIz/Fy0YTQKi7SA+0fuNeCaqlSm5pYSt6p5CH89y1Fr+wFc5r3iLRnUwRcy08ESC7bZJnxV3d/YQ5valTxBbzku/dQbXVj/xg69H8l8M=</signature>
++    </webviewprovider>
++</webviewproviders>
+--- a/device/softwinner/apollo/apollo-t95/sepolicy/fd655.te	1970-01-01 01:00:00.000000000 +0100
++++ b/device/softwinner/apollo/apollo-t95/sepolicy/fd655.te	2026-10-03 14:26:53.060932148 +0200
+@@ -0,0 +1,23 @@
++# T95: передний дисплей FD655 (часы), /vendor/bin/fd655.sh управляет PI11/PI12 через GPIO sysfs
++type fd655, domain;
++type fd655_exec, exec_type, vendor_file_type, file_type;
++init_daemon_domain(fd655)
++
++allow fd655 vendor_shell_exec:file rx_file_perms;
++allow fd655 vendor_toolbox_exec:file rx_file_perms;
++
++# GPIO (export + direction/value для gpio267/268)
++allow fd655 sysfs_fd655_gpio:dir r_dir_perms;
++allow fd655 sysfs_fd655_gpio:file rw_file_perms;
++allow fd655 sysfs_fd655_gpio:lnk_file read;
++# экран вкл/выкл (/sys/class/disp/disp/attr/sys), значки LAN/WiFi/USB
++allow fd655 sysfs_disp:dir search;
++allow fd655 sysfs_disp:file r_file_perms;
++allow fd655 sysfs_net:dir r_dir_perms;
++allow fd655 sysfs_net:file r_file_perms;
++allow fd655 sysfs_block:dir r_dir_perms;
++allow fd655 sysfs:dir r_dir_perms;
++allow fd655 sysfs:file r_file_perms;
++allow fd655 sysfs:lnk_file read;
++# не даёт системе уснуть, пока экран включён
++wakelock_use(fd655)
+--- a/device/softwinner/apollo/apollo-t95/sepolicy/file_contexts	1970-01-01 01:00:00.000000000 +0100
++++ b/device/softwinner/apollo/apollo-t95/sepolicy/file_contexts	2026-10-03 14:36:43.411912917 +0200
+@@ -0,0 +1 @@
++/vendor/bin/fd655\.sh    u:object_r:fd655_exec:s0
+--- a/device/softwinner/apollo/apollo-t95/sepolicy/file.te	1970-01-01 01:00:00.000000000 +0100
++++ b/device/softwinner/apollo/apollo-t95/sepolicy/file.te	2026-10-03 14:36:43.412892769 +0200
+@@ -0,0 +1,2 @@
++type sysfs_fd655_gpio, fs_type, sysfs_type;
++type sysfs_t95_sound, fs_type, sysfs_type;
+--- a/device/softwinner/apollo/apollo-t95/sepolicy/genfs_contexts	1970-01-01 01:00:00.000000000 +0100
++++ b/device/softwinner/apollo/apollo-t95/sepolicy/genfs_contexts	2026-10-03 15:12:42.509508276 +0200
+@@ -0,0 +1,16 @@
++# GPIO sysfs (FD655: gpio267/268 в банке PI = gpiochip1)
++genfscon sysfs /class/gpio                                                     u:object_r:sysfs_fd655_gpio:s0
++genfscon sysfs /devices/platform/soc@3000000/300b000.pinctrl/gpiochip1/gpio     u:object_r:sysfs_fd655_gpio:s0
++# звуковые карты (id читают system_server и bootanimation)
++genfscon sysfs /devices/platform/soc@3000000/soc@3000000:codec_mach/sound       u:object_r:sysfs_t95_sound:s0
++genfscon sysfs /devices/platform/soc@3000000/soc@3000000:ahub1_mach/sound       u:object_r:sysfs_t95_sound:s0
++# extcon HDMI/TV (CEC и HWC)
++genfscon sysfs /devices/platform/soc@3000000/6520000.tv0/extcon                 u:object_r:sysfs_extcon:s0
++# источник пробуждения от пульта (system_suspend)
++genfscon sysfs /devices/platform/soc@3000000/7040000.s_cir/wakeup               u:object_r:sysfs_wakeup:s0
++# другие источники пробуждения (system_suspend читает статистику)
++genfscon sysfs /devices/platform/soc@3000000/5100000.udc-controller/wakeup      u:object_r:sysfs_wakeup:s0
++genfscon sysfs /devices/platform/soc@3000000/7000000.rtc/wakeup                 u:object_r:sysfs_wakeup:s0
++genfscon sysfs /devices/platform/soc@3000000/7081400.twi/i2c-5/5-0036/wakeup     u:object_r:sysfs_wakeup:s0
++genfscon sysfs /devices/platform/uwe_bsp.0/wakeup                               u:object_r:sysfs_wakeup:s0
++genfscon sysfs /devices/platform/soc@3000000/7000000.rtc/rtc/rtc0/wakeup         u:object_r:sysfs_wakeup:s0
+--- a/device/softwinner/apollo/apollo-t95/sepolicy/property_contexts	1970-01-01 01:00:00.000000000 +0100
++++ b/device/softwinner/apollo/apollo-t95/sepolicy/property_contexts	2026-10-04 10:21:53.259639627 +0200
+@@ -0,0 +1,16 @@
++vendor.wlan.firmware.version    u:object_r:vendor_t95_wifi_prop:s0 exact string
++vendor.wlan.driver.version      u:object_r:vendor_t95_wifi_prop:s0 exact string
++rw.vendor.bluetooth.fw.ver      u:object_r:vendor_t95_bt_prop:s0 exact string
++# свойства дисплея, которые пишет HWC AW (выбранное разрешение HDMI, конфигурация)
++vendor.sys.tv_vdid_fex          u:object_r:vendor_t95_hwc_prop:s0 exact string
++vendor.sys.disp_                u:object_r:vendor_t95_hwc_prop:s0 prefix string
++persist.disp.                   u:object_r:vendor_t95_hwc_prop:s0 prefix string
++# свойства без префикса vendor, которые читают HAL AW (с метками AOSP default_prop/system_prop: avc denied)
++hdmi.cec.debug                  u:object_r:vendor_t95_hwc_prop:s0 exact string
++persist.display.policy          u:object_r:vendor_t95_hwc_prop:s0 exact string
++persist.sys.hdmistrategy        u:object_r:vendor_t95_hwc_prop:s0 exact string
++persist.sys.audio_3d_surround   u:object_r:vendor_audio_prop:s0 exact string
++persist.sys.gain1               u:object_r:vendor_audio_prop:s0 exact string
++persist.sys.gain2               u:object_r:vendor_audio_prop:s0 exact string
++persist.sys.gain3               u:object_r:vendor_audio_prop:s0 exact string
++ro.spk_dul.used                 u:object_r:vendor_audio_prop:s0 exact string
+--- a/device/softwinner/apollo/apollo-t95/sepolicy/t95.te	1970-01-01 01:00:00.000000000 +0100
++++ b/device/softwinner/apollo/apollo-t95/sepolicy/t95.te	2026-10-04 10:21:53.267640043 +0200
+@@ -0,0 +1,51 @@
++# T95: недостающие правила, найденные на приставке (SELinux permissive, 03.10.2026), для перехода на enforcing
++
++vendor_internal_prop(vendor_t95_wifi_prop)
++vendor_internal_prop(vendor_t95_hwc_prop)
++vendor_internal_prop(vendor_t95_bt_prop)
++set_prop(hal_wifi_default, vendor_t95_wifi_prop)
++set_prop(hal_graphics_composer_default, vendor_t95_hwc_prop)
++get_prop(hal_tv_cec_default, vendor_t95_hwc_prop)
++get_prop(hal_awdisplayoutput_default, vendor_t95_hwc_prop)
++set_prop(hal_bluetooth_default, vendor_t95_bt_prop)
++set_prop(hal_bluetooth_default, vendor_wireless_prop)
++set_prop(hal_audio_default, vendor_audio_prop)
++
++# HAL CEC и HWC: состояние HDMI через extcon
++allow hal_tv_cec_default sysfs_extcon:dir r_dir_perms;
++allow hal_tv_cec_default sysfs_extcon:file r_file_perms;
++allow hal_graphics_composer_default sysfs_extcon:dir r_dir_perms;
++allow hal_graphics_composer_default sysfs_extcon:file r_file_perms;
++
++# WiFi HAL смотрит /data/misc/wifi (системные данные: AOSP запрещает vendor)
++dontaudit hal_wifi_default wifi_data_file:dir search;
++
++# id звуковых карт
++allow system_server sysfs_t95_sound:dir r_dir_perms;
++allow system_server sysfs_t95_sound:file r_file_perms;
++allow hal_audio_default sysfs_t95_sound:dir r_dir_perms;
++allow hal_audio_default sysfs_t95_sound:file r_file_perms;
++allow bootanim sysfs_t95_sound:dir r_dir_perms;
++allow bootanim sysfs_t95_sound:file r_file_perms;
++
++# system_suspend (приватный системный тип) уже читает sysfs_wakeup: достаточно метки в genfs_contexts
++
++# HAL видеовыхода AW, вызывается из system_server
++hal_client_domain(system_server, hal_awdisplayoutput)
++
++# pqd: /data/disp_firmware (копия для настройки PQ с ПК) запрещена vendor; используется /vendor/etc/firmware
++dontaudit pqd system_data_root_file:file { rw_file_perms map };
++dontaudit pqd system_data_root_file:dir { write add_name };
++
++# vendor_init: dirty_expire_centisecs, /data/audio_d
++allow vendor_init proc_dirty:file w_file_perms;
++dontaudit vendor_init audio_rw_data_file:dir { getattr create };
++
++# безвредный шум
++dontaudit bootanim cache_file:lnk_file read;
++dontaudit bootanim system_data_file:dir search;
++dontaudit surfaceflinger hal_graphics_composer_default:dir search;
++dontaudit surfaceflinger hal_graphics_composer_default:file r_file_perms;
++
++# HAL CEC читает hdmi.cec.debug каждые 2 с: теперь с меткой vendor_t95_hwc_prop (property_contexts), get_prop выше
++# FLauncher (Flutter) читает /proc/sys/vm/max_map_count: AOSP запрещает приложениям, безвредно -> оставлено
+--- a/device/softwinner/apollo/apollo-t95/t95/customer_ir_fe02.kl	1970-01-01 01:00:00.000000000 +0100
++++ b/device/softwinner/apollo/apollo-t95/t95/customer_ir_fe02.kl	2026-10-03 12:51:00.735730137 +0200
+@@ -0,0 +1,33 @@
++key 25   BACK
++key 76   MENU
++key 19   DPAD_CENTER
++key 26   DPAD_DOWN
++key 22   DPAD_UP
++key 17   HOME
++key 81   DPAD_LEFT
++key 80   DPAD_RIGHT
++key 24   VOLUME_UP
++key 16   VOLUME_DOWN
++key 15   APPS
++key 67   SETTINGS
++key 64   POWER
++key 1    0
++key 78   1
++key 13   2
++key 12   3
++key 74   4
++key 9    5
++key 8    6
++key 70   7
++key 5    8
++key 4    9
++key 65   VOLUME_MUTE
++key 0    MOUSE
++key 213  CALCULATOR
++key 75   MEDIA_PREVIOUS
++key 79   MEDIA_NEXT
++key 66   DEL
++key 02   CALENDAR
++key 33   ZOOM_IN
++key 34   ZOOM_OUT
++key 35   INFO
+--- a/device/softwinner/apollo/apollo-t95/t95/fd655.rc	1970-01-01 01:00:00.000000000 +0100
++++ b/device/softwinner/apollo/apollo-t95/t95/fd655.rc	2026-10-03 14:28:03.582908411 +0200
+@@ -0,0 +1,5 @@
++# T95: передний дисплей FD655 (часы + значки LAN/WiFi/USB), драйвер в userspace через GPIO PI11/PI12
++service fd655 /vendor/bin/fd655.sh clock
++    class late_start
++    user root
++    group system wakelock
+--- a/device/softwinner/apollo/apollo-t95/t95/fd655.sh	1970-01-01 01:00:00.000000000 +0100
++++ b/device/softwinner/apollo/apollo-t95/t95/fd655.sh	2026-10-03 14:28:14.661292860 +0200
+@@ -0,0 +1,61 @@
++#!/vendor/bin/sh
++# Передний дисплей T95 (FD655) через GPIO sysfs: протокол восстановлен по драйверу стокового ядра 4.9
++# (FD655_Start/Writebyte/Stop/Command/Disp). CLK = PI11 (gpio 267), DAT = PI12 (gpio 268).
++#  команда:  START 0x48 <cmd> STOP         (0x03 = дисплей вкл, 0x00 = выкл)
++#  цифры:    START <0x68|0x6a|0x6c|0x6e> <сегменты> STOP ; значки: START 0x66 <маска> STOP
++#  значки (бит): 0 часы, 1 USB, 2 play, 3 пауза, 4 двоеточие, 5 LAN, 6 WiFi
++# использование: fd655.sh text "1234" [значки] | fd655.sh clock (служба) | fd655.sh off
++# служба:   /vendor/etc/init/fd655.rc -> /vendor/bin/fd655.sh clock
++#           домен SELinux fd655 (apollo-t95/sepolicy/fd655.te): только GPIO, sysfs и wakelock
++#           сетевое имя DHCP: overlay NetworkStackOverlayT95; имя Bluetooth: bluetooth.device.default_name
++#           (патч btif_dm.cc); анимация FLauncher выключена по умолчанию (патч 06)
++CLK=267; DAT=268; G=/sys/class/gpio
++for p in $CLK $DAT; do
++  [ -d $G/gpio$p ] || echo $p > $G/export
++  echo out > $G/gpio$p/direction
++done
++exec 3>$G/gpio$CLK/value 4>$G/gpio$DAT/value
++c() { echo $1 >&3; }
++d() { echo $1 >&4; }
++start() { d 1; c 1; d 0; c 0; }
++stop()  { d 0; c 1; d 1; }
++wbyte() { v=$1; i=8
++  while [ $i -gt 0 ]; do
++    if [ $((v & 128)) -ne 0 ]; then d 1; else d 0; fi
++    c 1; c 0; v=$(( (v << 1) & 255 )); i=$((i - 1))
++  done
++  d 1; c 1; c 0; }                       # такт для ACK
++send() { start; wbyte $1; wbyte $2; stop; }
++# таблица сегментов из стокового драйвера (нестандартная разводка T95)
++seg() { case "$1" in
++  0|O|o) echo 63;; 1) echo 48;; 2) echo 91;; 3) echo 121;; 4) echo 116;; 5) echo 109;; 6) echo 111;; 7) echo 56;;
++  8) echo 127;; 9) echo 125;; a|A) echo 119;; b|B) echo 103;; c) echo 88;; C) echo 57;; d|D) echo 94;;
++  e|E) echo 121;; f|F) echo 113;; t|T) echo 71;; *) echo 0;; esac; }
++text() { s="$1"; n=0
++  for a in 104 106 108 110; do ch=${s:$n:1}; send $a $(seg "$ch"); n=$((n + 1)); done
++  send 102 ${2:-0}; }
++icons() { m=16                            # двоеточие всегда горит
++  [ "$(cat /sys/class/net/eth0/carrier 2>/dev/null)" = 1 ] && m=$((m | 32))
++  [ "$(cat /sys/class/net/wlan0/operstate 2>/dev/null)" = up ] && m=$((m | 64))
++  ls -d /sys/class/block/sd? >/dev/null 2>&1 && m=$((m | 2))
++  echo $m; }
++# экран включён = выход HDMI активен: в standby строка "unblank" пропадает (проверено 03.10)
++awake() { grep -q unblank /sys/class/disp/disp/attr/sys; }
++case "$1" in
++  text) send 72 3; text "$2" "$3";;
++  off) send 72 0;;
++  clock) on=
++    while :; do
++      if awake; then
++        # wakelock, пока экран включён: без него Android уходит в глубокий сон через мгновение после
++        # выключения экрана, раньше чем цикл это заметит, и дисплей остаётся гореть в standby
++        [ -z "$on" ] && { echo fd655 > /sys/power/wake_lock; send 72 3; on=1; old=; }
++        cur="$(date +%H%M) $(icons)"
++        [ "$cur" != "$old" ] && { text ${cur% *} ${cur#* }; old=$cur; }
++      elif [ -n "$on" ]; then
++        send 72 0; on=                    # standby: дисплей выкл, затем разрешаем сон
++        echo fd655 > /sys/power/wake_unlock
++      fi
++      sleep 3
++    done;;
++esac
+--- a/device/softwinner/apollo/apollo-t95/t95/homlet-default.json	1970-01-01 01:00:00.000000000 +0100
++++ b/device/softwinner/apollo/apollo-t95/t95/homlet-default.json	2026-10-03 12:51:09.179555086 +0200
+@@ -0,0 +1,38 @@
++{
++    "DisplayEngineVersion": 2,
++    "DisplayNumber": 2,
++
++    /* Primary display */
++    "Display0": {
++        /* Available interface type: LCD/HDMI/CVBS */
++        "InterfaceType": "HDMI",
++        "DisplayEnginePortId": 0,
++        "OverrideFramebufferSize": 1,
++        "FramebufferWidth": 1920,
++        "FramebufferHeight": 1080,
++        "DpiX": 160,
++        "DpiY": 160,
++        "HotplugSupported": 0,
++        "AfbcSupported": 0,
++        "HardwareRotateSupported": 0,
++        "BandwidthLimited": 338800,
++        "DefaultOutputMode": 0
++    },
++
++    /* external display */
++    "Display1": {
++        /* Available interface type: LCD/HDMI/CVBS */
++        "InterfaceType": "CVBS",
++        "DisplayEnginePortId": 1,
++        "OverrideFramebufferSize": 1,
++        "FramebufferWidth": 1280,
++        "FramebufferHeight": 720,
++        "DpiX": 160,
++        "DpiY": 160,
++        "HotplugSupported": 0,
++        "AfbcSupported": 0,
++        "HardwareRotateSupported": 0,
++        "BandwidthLimited": 338800,
++        "DefaultOutputMode": 0
++    }
++}
+--- a/device/softwinner/apollo/apollo-t95/t95/NetworkStackOverlayT95/Android.bp	1970-01-01 01:00:00.000000000 +0100
++++ b/device/softwinner/apollo/apollo-t95/t95/NetworkStackOverlayT95/Android.bp	2026-10-03 12:51:28.625293342 +0200
+@@ -0,0 +1,5 @@
++// T95: DHCP-клиент передаёт роутеру имя приставки (device_name = ro.product.model T95_h616 -> "T95-h616")
++runtime_resource_overlay {
++    name: "NetworkStackOverlayT95",
++    product_specific: true,
++}
+--- a/device/softwinner/apollo/apollo-t95/t95/NetworkStackOverlayT95/AndroidManifest.xml	1970-01-01 01:00:00.000000000 +0100
++++ b/device/softwinner/apollo/apollo-t95/t95/NetworkStackOverlayT95/AndroidManifest.xml	2026-10-03 12:51:28.626338199 +0200
+@@ -0,0 +1,8 @@
++<?xml version="1.0" encoding="utf-8"?>
++<manifest xmlns:android="http://schemas.android.com/apk/res/android"
++    package="org.t95.overlay.networkstack">
++    <overlay android:targetPackage="com.android.networkstack"
++             android:targetName="NetworkStackConfig"
++             android:isStatic="true"
++             android:priority="1" />
++</manifest>
+--- a/device/softwinner/apollo/apollo-t95/t95/NetworkStackOverlayT95/res/values/config.xml	1970-01-01 01:00:00.000000000 +0100
++++ b/device/softwinner/apollo/apollo-t95/t95/NetworkStackOverlayT95/res/values/config.xml	2026-10-03 12:51:28.626829768 +0200
+@@ -0,0 +1,4 @@
++<?xml version="1.0" encoding="utf-8"?>
++<resources>
++    <bool name="config_dhcp_client_hostname">true</bool>
++</resources>
