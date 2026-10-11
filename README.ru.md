@@ -121,7 +121,7 @@ USB) находится в ПЗУ процессора, стереть его н
 
 | Файл | Содержание |
 |---|---|
-| `patches/01-longan-board-t95-vs-p2.patch` | плата `t95` = копия `configs/p2` (Zero 3) + изменения: `board.dts` ядра (AXP806, eMMC DDR52, gmac1+AC200, LED, VBUS PH8, USB0 host, ИК fe02, OPP…), `sys_config.fex` (DRAM из стока T95), `uboot-board.dts` |
+| `longan/device/config/chips/h618/configs/t95/` | готовая папка платы `t95` (скопировать в исходники): `configs/p2` (Zero 3) + изменения: `board.dts` ядра (AXP806, eMMC DDR52, gmac1+AC200, LED, VBUS PH8, USB0 host, ИК fe02, OPP…), `sys_config.fex` (DRAM из стока T95), `uboot-board.dts` |
 | `patches/03a-device-apollo-t95-vs-p2.patch` | устройство `apollo-t95` = копия `apollo-p2` + изменения (BoardConfig, sepolicy, FD655, ИК-раскладка, HDMI 1080p, RRO NetworkStack, WebView overlay, `apps/Android.mk`) |
 | `patches/03b-product-apollo_t95-vs-p2.patch` | `apollo_t95.mk` = копия `apollo_p2.mk` + изменения |
 | `patches/04-aw-fixes-64bit-security.patch` | исправления Allwinner: сборка 64 бит (модули с 32-битными блобами → 32 бит, printf/типы, ABI-дампы, HDR10+), безопасность (ADB по сети без авторизации, `platform_app mlstrustedsubject`, `service_contexts`, `/dev/watchdog`), `AndroidProducts.mk`, `pack4dist`, уровень патча 2025-01-01 |
@@ -131,7 +131,7 @@ USB) находится в ПЗУ процессора, стереть его н
 | `patches/09-rtc-axp806-offctl-t95.patch` | исправление сброса RTC (b16): U-Boot (`pmu_axp806.c`) и ядро (`axp2101.c`) сбрасывают бит 4 регистра AXP806 0x32 (OFF_CTL), который включает бинарный sboot. С ним каждый сброс SoC обнулял весь домен RTC. См. [Выключение](#выключение) |
 | `patches/07-kernel-5.4.302-experimental/` | **эксперимент, в релиз не вошло** — см. [Ядро](#ядро) |
 | `tools/bl31_t95_patch.py` | создаёт `bin/bl31_t95.bin` из `bl31.bin`: пропуск «hardware check» только для H618 (0x1F4C). С `--fakeoff` — ещё старый обход выключения из b13–b15 (PSCI SYSTEM_OFF, 0x1CF0..0x1D00), с b16 не нужен |
-| `tools/t95_board_dts.py` | генератор `board.dts` t95 из p2 (результат уже в патче 01) |
+| `tools/t95_board_dts.py` | генератор `board.dts` t95 из p2 (результат уже в `configs/t95`) |
 | `tools/t95_sys_config.py` | генератор `sys_config.fex` t95 из p2 + стокового `sys_config.fex` T95 |
 | `tools/gen_app_keys.sh` | генерация своих ключей приложений (platform/media/shared/networkstack/releasekey) |
 
@@ -142,10 +142,10 @@ USB) находится в ПЗУ процессора, стереть его н
 ```sh
 git clone https://github.com/well83/t95-h616-android12.git
 cd H618-Android12-Src
-cp -a longan/device/config/chips/h618/configs/p2 longan/device/config/chips/h618/configs/t95
+cp -a ../t95-h616-android12/longan .                                   # папка платы configs/t95
 cp -a device/softwinner/apollo/apollo-p2 device/softwinner/apollo/apollo-t95
 cp    device/softwinner/apollo/apollo_p2.mk device/softwinner/apollo/apollo_t95.mk
-for p in 01 03a 03b 04 05 08 09; do git apply -p1 ../t95-h616-android12/patches/$p-*.patch; done   # или patch -p1 < ...
+for p in 03a 03b 04 05 08 09; do git apply -p1 ../t95-h616-android12/patches/$p-*.patch; done   # или patch -p1 < ...
 python3 ../t95-h616-android12/tools/bl31_t95_patch.py longan/device/config/chips/h618/bin/bl31.bin \
         longan/device/config/chips/h618/bin/bl31_t95.bin
 ```
@@ -177,7 +177,7 @@ source build/envsetup.sh && lunch apollo_t95-user && make -j10 && pack4dist -v
 
 В релизной сборке ядро Allwinner 5.4.125 из H618-Android12-Src почти без изменений: в коде только одна
 строка в драйвере AXP806 (патч 09, вместе с исправлением U-Boot). Под T95 ядро адаптируется конфигурацией
-платы в longan (патч 01):
+платы в longan (`longan/device/config/chips/h618/configs/t95`):
 
 - `linux-5.4/board.dts` (генератор `tools/t95_board_dts.py`): AXP806 вместо AXP1530, eMMC DDR52,
   gmac1/AC200 (twi3, PA10/11), LED PH6/7, VBUS PH8, USB0 host, ИК fe02/0x40, OPP, card detect SD PI16.
@@ -238,6 +238,17 @@ BL31 сразу вызывает box standby (функция 0x1B2C с сохр�
 
 Отдельного SCP нет и в стоке: standby целиком внутри BL31 (код в SRAM A2 0x20000).
 
+## Другие ревизии платы
+
+T95 бывают с другим PMIC (например AXP313A/AXP1530), памятью и Wi-Fi. Ревизия описывается своей папкой платы,
+как у Orange Pi и Radxa: `longan/device/config/chips/h618/configs/<плата>/` с `sys_config.fex` (DRAM, напряжения PMIC, GPIO),
+`linux-5.4/board.dts` (DT ядра) и `uboot-board.dts`. Патчи Android остаются общими. Папка Zero 3 `p2` уже
+описывает AXP1530/AXP313A — хорошая отправная точка для таких боксов.
+
+Чтобы добавить ревизию, присылайте pull request с новой папкой `longan/device/config/chips/h618/configs/t95-<имя>/` и, если можно, стоковым
+`sys_config.fex`/DTB этого бокса, фото платы и логом UART первой загрузки. Сам я могу проверить только плату
+с AXP806, поэтому новая папка принимается после того, как автор подтвердит, что сборка загружается.
+
 ## Безопасность и ключи
 
 Ключи подписи я **не публикую и никому не передаю** — это гарантия, что никто другой не сможет выпустить
@@ -245,6 +256,8 @@ BL31 сразу вызывает box standby (функция 0x1B2C с сохр�
 
 ## Лицензии
 
+- Папка платы `longan/device/config/chips/h618/configs/t95/` сделана из конфигурации BSP Orange Pi /
+  Allwinner (`configs/p2`) и остаётся под лицензией этих файлов.
 - Патчи к AOSP, BSP Allwinner и device tree — под лицензией изменяемых файлов (в основном Apache-2.0;
   ядро и файлы в `patches/07-kernel-5.4.302-experimental/resolved/` — GPL-2.0).
 - `patches/06-flauncher-v2025.07.001-t95.patch` — изменение FLauncher, GPL-3.0.

@@ -128,7 +128,7 @@ Nei sorgenti la scheda Zero 3 si chiama **p2** (prodotto `apollo_p2`). Le patch 
 
 | File | Contenuto |
 |---|---|
-| `patches/01-longan-board-t95-vs-p2.patch` | scheda `t95` = copia di `configs/p2` (Zero 3) + modifiche: `board.dts` del kernel (AXP806, eMMC DDR52, gmac1 + AC200, LED, VBUS PH8, USB0 host, IR fe02, OPP…), `sys_config.fex` (DRAM dal T95 originale), `uboot-board.dts` |
+| `longan/device/config/chips/h618/configs/t95/` | cartella pronta della scheda `t95` (da copiare nei sorgenti): `configs/p2` (Zero 3) + modifiche: `board.dts` del kernel (AXP806, eMMC DDR52, gmac1 + AC200, LED, VBUS PH8, USB0 host, IR fe02, OPP…), `sys_config.fex` (DRAM dal T95 originale), `uboot-board.dts` |
 | `patches/03a-device-apollo-t95-vs-p2.patch` | dispositivo `apollo-t95` = copia di `apollo-p2` + modifiche (BoardConfig, sepolicy, FD655, mappa tasti IR, HDMI 1080p, RRO NetworkStack, overlay WebView, `apps/Android.mk`) |
 | `patches/03b-product-apollo_t95-vs-p2.patch` | `apollo_t95.mk` = copia di `apollo_p2.mk` + modifiche |
 | `patches/04-aw-fixes-64bit-security.patch` | correzioni Allwinner: build a 64 bit (moduli che dipendono da blob a 32 bit → 32 bit, printf/tipi, dump ABI, HDR10+), sicurezza (adb in rete senza autorizzazione, `platform_app mlstrustedsubject`, `service_contexts`, `/dev/watchdog`), `AndroidProducts.mk`, `pack4dist`, livello patch 2025-01-01 |
@@ -138,7 +138,7 @@ Nei sorgenti la scheda Zero 3 si chiama **p2** (prodotto `apollo_p2`). Le patch 
 | `patches/09-rtc-axp806-offctl-t95.patch` | correzione dell'azzeramento dell'RTC (b16): U-Boot (`pmu_axp806.c`) e il kernel (`axp2101.c`) spengono il bit 4 del registro 0x32 (OFF_CTL) dell'AXP806, che lo sboot binario accende. Con quel bit acceso ogni reset del SoC azzerava tutto il dominio RTC. Vedi [Spegnimento](#spegnimento) |
 | `patches/07-kernel-5.4.302-experimental/` | **esperimento, non incluso nella release**: vedi [Kernel](#kernel) |
 | `tools/bl31_t95_patch.py` | crea `bin/bl31_t95.bin` da `bl31.bin`: salta il "hardware check" che accetta solo H618 (0x1F4C). Con `--fakeoff` aggiunge anche il vecchio aggiramento dello spegnimento delle b13–b15 (PSCI SYSTEM_OFF, 0x1CF0..0x1D00), non più necessario dalla b16 |
-| `tools/t95_board_dts.py` | genera il `board.dts` t95 da quello p2 (il risultato è già nella patch 01) |
+| `tools/t95_board_dts.py` | genera il `board.dts` t95 da quello p2 (il risultato è già in `configs/t95`) |
 | `tools/t95_sys_config.py` | genera il `sys_config.fex` t95 da quello p2 + il `sys_config.fex` del T95 originale |
 | `tools/gen_app_keys.sh` | genera le tue chiavi delle app (platform/media/shared/networkstack/releasekey) |
 
@@ -151,10 +151,10 @@ Clona il repository accanto alla cartella estratta `H618-Android12-Src`:
 ```sh
 git clone https://github.com/well83/t95-h616-android12.git
 cd H618-Android12-Src
-cp -a longan/device/config/chips/h618/configs/p2 longan/device/config/chips/h618/configs/t95
+cp -a ../t95-h616-android12/longan .                                   # cartella della scheda configs/t95
 cp -a device/softwinner/apollo/apollo-p2 device/softwinner/apollo/apollo-t95
 cp    device/softwinner/apollo/apollo_p2.mk device/softwinner/apollo/apollo_t95.mk
-for p in 01 03a 03b 04 05 08 09; do git apply -p1 ../t95-h616-android12/patches/$p-*.patch; done   # oppure patch -p1 < ...
+for p in 03a 03b 04 05 08 09; do git apply -p1 ../t95-h616-android12/patches/$p-*.patch; done   # oppure patch -p1 < ...
 python3 ../t95-h616-android12/tools/bl31_t95_patch.py longan/device/config/chips/h618/bin/bl31.bin \
         longan/device/config/chips/h618/bin/bl31_t95.bin
 ```
@@ -187,7 +187,7 @@ source build/envsetup.sh && lunch apollo_t95-user && make -j10 && pack4dist -v
 
 La build di rilascio usa il kernel Allwinner 5.4.125 di H618-Android12-Src quasi così com'è: nel codice
 c'è solo una riga nel driver dell'AXP806 (patch 09, insieme alla correzione di U-Boot). Il kernel si adatta
-al T95 con la configurazione della scheda in longan (patch 01):
+al T95 con la configurazione della scheda in longan (`longan/device/config/chips/h618/configs/t95`):
 
 - `linux-5.4/board.dts` (generato da `tools/t95_board_dts.py`): AXP806 al posto di AXP1530, eMMC DDR52,
   gmac1/AC200 (twi3, PA10/11), LED PH6/7, VBUS PH8, USB0 host, IR fe02/0x40, OPP, rilevamento SD su PI16.
@@ -252,6 +252,19 @@ ancora, ma è una patch a un binario chiuso e non serve più.
 Non c'è un SCP separato, nemmeno nel firmware originale: lo standby gira tutto dentro BL31 (codice in SRAM A2
 a 0x20000).
 
+## Altre revisioni della scheda
+
+Esistono T95 con altri PMIC (per esempio AXP313A/AXP1530), altra RAM e altro Wi-Fi. Una revisione si descrive
+con la sua cartella della scheda, come fanno Orange Pi e Radxa: `longan/device/config/chips/h618/configs/<scheda>/` con `sys_config.fex`
+(DRAM, tensioni del PMIC, GPIO), `linux-5.4/board.dts` (DT del kernel) e `uboot-board.dts`. Le patch di
+Android restano le stesse. La cartella `p2` dello Zero 3 descrive già un AXP1530/AXP313A, quindi è un buon
+punto di partenza per quei box.
+
+Per aggiungere una revisione, apri una pull request con una nuova cartella `longan/device/config/chips/h618/configs/t95-<nome>/` e, se puoi,
+il `sys_config.fex`/DTB originale di quel box, foto della scheda e un log UART del primo avvio. Io posso
+provare solo la scheda con AXP806, quindi una nuova cartella viene accettata dopo che il suo autore ha
+confermato che la build si avvia.
+
 ## Sicurezza e chiavi
 
 **Non pubblico e non condivido le mie chiavi di firma.** In questo modo nessun altro può distribuire un
@@ -259,6 +272,8 @@ a 0x20000).
 
 ## Licenze
 
+- La cartella della scheda `longan/device/config/chips/h618/configs/t95/` deriva dalla configurazione del
+  BSP Orange Pi / Allwinner (`configs/p2`) e mantiene la licenza di quei file.
 - Le patch ad AOSP, al BSP Allwinner e ai device tree seguono la licenza dei file che modificano
   (soprattutto Apache-2.0; il kernel e i file in `patches/07-kernel-5.4.302-experimental/resolved/` sono
   GPL-2.0).
