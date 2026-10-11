@@ -31,8 +31,9 @@ servers. Instead of cleaning it, I rebuilt Android 12 from scratch, starting fro
   device name `T95_h616`
 - **Power off from the remote**: a long press on power opens a *Power off / Restart* menu, which you can
   navigate with the remote's arrow keys. *Power off* turns off HDMI and the front display and waits; press
-  power on the remote to turn the box back on. With the stock Allwinner code the T95 rebooted instead of
-  powering off (see [Power off](#power-off)).
+  power on the remote to turn the box back on. With the plain Allwinner code the T95 rebooted instead of
+  powering off; b13–b15 worked around it in BL31, b16 fixes the real cause (see [Power off](#power-off)).
+- The RTC keeps the time and the reboot flags across a reboot (before b16 every reset cleared it).
 
 No Google services (GApps). To install apps, use F-Droid, Aurora Store (available on F-Droid) or Downloader.
 
@@ -65,8 +66,8 @@ remote, FD655 display, both USB ports.
 
 1. **Back up your current firmware** if you have it, or find the stock firmware for your revision.
 2. You need a USB A-A (male-male) cable and PhoenixSuit (Windows) or OpenixSuit (Linux).
-3. Download `update.opi-t95-a12-b14-user.img.xz` from [Releases](../../releases) and decompress it
-   (7-Zip on Windows, `xz -d` on Linux), then select `update.opi-t95-a12-b14-user.img` and choose a full flash (Full Erase).
+3. Download `update.opi-t95-a12-b16-user.img.xz` from [Releases](../../releases) and decompress it
+   (7-Zip on Windows, `xz -d` on Linux), then select `update.opi-t95-a12-b16-user.img` and choose a full flash (Full Erase).
 4. With the box off, hold the reset button (inside the AV jack), connect USB to the PC, and release the
    button after 3–5 s. Flashing starts.
 5. The first boot takes about 1–2 minutes.
@@ -97,7 +98,7 @@ cannot be erased, so the box can always be recovered.
   ADB does not work over USB because the T95 USB0 port is host-only (no ID pin); the A-A cable is only
   for flashing.
 - A short press on power puts the box to sleep; a long press opens the power menu. *Power off* is a deep
-  standby inside BL31, not a full power cut: the power supply stays live and the remote turns the box back
+  standby (U-Boot + BL31), not a full power cut: the power supply stays live and the remote turns the box back
   on. To cut power completely, unplug the power supply.
 - On first boot, Bluetooth may start ~5 s late; it recovers by itself.
 - Downloader (AFTVnews) is a free, closed-source app with ads (AdMob/Meta). Uninstall its updates or
@@ -129,8 +130,9 @@ and a new product **apollo_t95**. Build host: Ubuntu 22.04.
 | `patches/05-aosp-security-r34-r69.patch` | AOSP security patches android-security-12.0.0_r34 → r69 (27 projects), including resolved conflicts and `make update-api`. Also contains one T95 line in `system/bt/btif/src/btif_dm.cc` (BT name from `bluetooth.device.default_name`) |
 | `patches/06-flauncher-v2025.07.001-t95.patch` | [FLauncher](https://github.com/osrosal/flauncher) (tag v2025.07.001): highlight animation off by default. Build: Flutter 3.24.5, JDK 17, `flutter build apk --release --split-per-abi --target-platform android-arm64` |
 | `patches/08-poweroff-menu-t95.patch` | power off and menu: long press on power opens Power off / Restart (`apollo-t95` overlay `config.xml`); SystemUI `GlobalActionsDialogLite` buttons selectable with the remote arrows (focus, white frame); FD655 turns off at shutdown (`fd655.rc` on shutdown); SELinux: audio.routing, dontaudit installd |
+| `patches/09-rtc-axp806-offctl-t95.patch` | fix for the RTC reset (b16): U-Boot (`pmu_axp806.c`) and the kernel (`axp2101.c`) clear bit 4 of AXP806 register 0x32 (OFF_CTL), which the binary sboot sets. With it set, every SoC reset cleared the whole RTC domain. See [Power off](#power-off) |
 | `patches/07-kernel-5.4.302-experimental/` | **experiment, not in the release**: see [Kernel](#kernel) |
-| `tools/bl31_t95_patch.py` | creates `bin/bl31_t95.bin` from `bl31.bin`: skips the H618-only "hardware check" (0x1F4C) and adds a real power off (PSCI SYSTEM_OFF, 0x1CF0..0x1D00) |
+| `tools/bl31_t95_patch.py` | creates `bin/bl31_t95.bin` from `bl31.bin`: skips the H618-only "hardware check" (0x1F4C). With `--fakeoff` it also adds the old power-off workaround of b13–b15 (PSCI SYSTEM_OFF, 0x1CF0..0x1D00), not needed since b16 |
 | `tools/t95_board_dts.py` | generates the t95 `board.dts` from p2 (output already in patch 01) |
 | `tools/t95_sys_config.py` | generates the t95 `sys_config.fex` from p2 + the stock T95 `sys_config.fex` |
 | `tools/gen_app_keys.sh` | generates your own app keys (platform/media/shared/networkstack/releasekey) |
@@ -147,7 +149,7 @@ cd H618-Android12-Src
 cp -a longan/device/config/chips/h618/configs/p2 longan/device/config/chips/h618/configs/t95
 cp -a device/softwinner/apollo/apollo-p2 device/softwinner/apollo/apollo-t95
 cp    device/softwinner/apollo/apollo_p2.mk device/softwinner/apollo/apollo_t95.mk
-for p in 01 03a 03b 04 05 08; do git apply -p1 ../t95-h616-android12/patches/$p-*.patch; done   # or patch -p1 < ...
+for p in 01 03a 03b 04 05 08 09; do git apply -p1 ../t95-h616-android12/patches/$p-*.patch; done   # or patch -p1 < ...
 python3 ../t95-h616-android12/tools/bl31_t95_patch.py longan/device/config/chips/h618/bin/bl31.bin \
         longan/device/config/chips/h618/bin/bl31_t95.bin
 ```
@@ -178,9 +180,9 @@ source build/envsetup.sh && lunch apollo_t95-user && make -j10 && pack4dist -v
 
 ### Kernel
 
-The release build does **not** patch the kernel source: it uses the Allwinner 5.4.125 kernel from
-H618-Android12-Src as is. The kernel is adapted to the T95 only through the longan board configuration
-(patch 01):
+The release build uses the Allwinner 5.4.125 kernel from H618-Android12-Src almost as is: the only source
+change is one line in the AXP806 driver (patch 09, together with the U-Boot fix). The kernel is adapted to
+the T95 through the longan board configuration (patch 01):
 
 - `linux-5.4/board.dts` (generated by `tools/t95_board_dts.py`): AXP806 instead of AXP1530, eMMC DDR52,
   gmac1/AC200 (twi3, PA10/11), LEDs PH6/7, VBUS PH8, USB0 host, IR fe02/0x40, OPP, SD card detect PI16.
@@ -189,7 +191,7 @@ H618-Android12-Src as is. The kernel is adapted to the T95 only through the long
 - `uboot-board.dts`: boot_clock 1008, AXP806, `sdc_io_1v8=0`. `pack` does **not** merge `sys_config` into
   the U-Boot DT, so U-Boot values must be written directly in `uboot-board.dts`.
 - BL31: the SDK `bl31.bin` doesn't start on H616 because of an H618-only check, so `tools/bl31_t95_patch.py`
-  patches it. The same tool adds the power-off fix described below.
+  patches it (only the "hardware check"; `--fakeoff` is the old power-off workaround, see below).
 
 `patches/07-kernel-5.4.302-experimental/` is an **experiment** to update the kernel to 5.4.302. The
 Allwinner kernel is Android Common Kernel (ACK) android12-5.4 + the Allwinner BSP, so the update is a
@@ -219,13 +221,28 @@ Allwinner's *fake poweroff* scheme works like this:
 3. U-Boot (`CONFIG_ATF_BOX_STANDBY`) calls SMC 0x8000ff14.
 4. BL31 reads GPR[2]==2 and `/box_start_os0` from the DT, then enters standby with IR wake-up.
 
-This does **not** work on the T95: any reset clears the whole RTC domain (all GPRs, time back to 1970,
-ALARM0_DAY=0), so the flag is lost and the box simply rebooted. There is no separate SCP, not even in
-stock firmware: standby runs entirely inside BL31 (code in SRAM A2 at 0x20000).
+Up to b15 this did not work on the T95: every reset cleared the whole RTC domain (all GPRs, the time,
+ALARM0_DAY), so the flag was lost and the box simply rebooted. With the stock firmware the same box keeps
+the GPRs across a reset, so it was not the hardware.
 
-The fix (`tools/bl31_t95_patch.py`): in PSCI SYSTEM_OFF, when GPR[2]==0xe, BL31 calls box standby
-**right away** (function 0x1B2C with the saved DT), without a reset. When the remote wakes the box, BL31
-resets and the box cold-boots normally (the GPRs are already empty). The kernel and U-Boot are unchanged.
+**Cause (found on 11.10.2026):** bit 4 of AXP806 register **0x32 (OFF_CTL)**. The sboot built from the
+SDK (its PMIC code is in the binary `spl-pub/board/h616/libsun50iw9p1_sboot.a`) sets it at every boot; the
+stock firmware leaves it at 0 (OFF_CTL = 0x26). With bit 4 set, a SoC reset clears the RTC domain. The PMIC
+keeps the value until the power supply is unplugged, so even the stock boot chain lost the GPRs after our
+firmware had run. Tested by bisection on the box, from U-Boot (`sunxi_axp pmu write 0x32 …`,
+`mw 0x0700010c …`, `reset`): 0x26 and 0x24 keep the GPRs, 0x36 and 0x34 clear them. The kernel, BL31,
+U-Boot and the reset method were ruled out by swapping in the stock sboot/BL31/U-Boot one at a time.
+
+**Fix (b16, `patches/09`):** U-Boot clears bit 4 right after detecting the AXP806 (before any reset can
+happen) and the kernel driver clears it again. The standard Allwinner scheme above now works unchanged, and
+the time and reboot flags survive a reboot.
+
+**Old workaround (b13–b15):** `tools/bl31_t95_patch.py --fakeoff` patches PSCI SYSTEM_OFF so that with
+GPR[2]==0xe BL31 calls box standby (function 0x1B2C with the saved DT) right away, without a reset. It
+still works, but it is a patch to a closed binary and is no longer needed.
+
+There is no separate SCP, not even in stock firmware: standby runs entirely inside BL31 (code in SRAM A2 at
+0x20000).
 
 ## Security and keys
 

@@ -1,0 +1,30 @@
+--- a/longan/brandy/brandy-2.0/u-boot-2018/drivers/sunxi_power/pmu_axp806.c
++++ b/longan/brandy/brandy-2.0/u-boot-2018/drivers/sunxi_power/pmu_axp806.c
+@@ -96,6 +96,15 @@
+ 	if (pmu_chip_id == AXP806_CHIP_ID) {
+ 		/*pmu type AXP806*/
+ 		tick_printf("PMU: AXP806\n");
++		/*
++		 * T95: sboot (бинарная libsun50iw9p1_sboot.a) включает бит 4 регистра
++		 * 0x32 (OFF_CTL). С ним каждый сброс SoC обнуляет весь домен RTC
++		 * (GPR, время) -> флаги reboot/fake poweroff теряются. Сток держит 0.
++		 */
++		if (!pmic_bus_read(AXP806_RUNTIME_ADDR, AXP806_DIASBLE, &pmu_chip_id) &&
++		    (pmu_chip_id & BIT(4)))
++			pmic_bus_write(AXP806_RUNTIME_ADDR, AXP806_DIASBLE,
++				       pmu_chip_id & ~BIT(4));
+ 		return 0;
+ 	}
+ 	return -1;
+--- a/longan/kernel/linux-5.4/drivers/mfd/axp2101.c
++++ b/longan/kernel/linux-5.4/drivers/mfd/axp2101.c
+@@ -2758,6 +2758,9 @@
+ 	} else {
+ 		regmap_update_bits(map, AXP806_OFF_CTL, BIT(1), 0);
+ 	}
++
++	/* T95: бит 4, включённый sboot, обнуляет домен RTC при каждом сбросе */
++	regmap_update_bits(map, AXP806_OFF_CTL, BIT(4), 0);
+ }
+ 
+ static void axp1530_dts_parse(struct axp20x_dev *axp20x)

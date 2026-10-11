@@ -32,8 +32,9 @@ pubblici.
   LAN/Wi-Fi/USB), nome dispositivo `T95_h616`
 - **Spegnimento dal telecomando**: la pressione lunga di power apre il menu *Spegni / Riavvia*, che si
   naviga con le frecce del telecomando. *Spegni* spegne HDMI e display e mette il box in attesa; si riaccende
-  col tasto power del telecomando. Con il codice Allwinner originale il T95 si riavviava invece di spegnersi
-  (vedi [Spegnimento](#spegnimento)).
+  col tasto power del telecomando. Con il codice Allwinner originale il T95 si riavviava invece di
+  spegnersi; le b13–b15 lo aggiravano nel BL31, la b16 corregge la causa vera (vedi [Spegnimento](#spegnimento)).
+- L'RTC conserva l'ora e i flag di riavvio quando si riavvia (prima della b16 ogni reset li azzerava).
 
 Niente servizi Google (GApps). Le app si installano da F-Droid, Aurora Store (disponibile su F-Droid)
 o Downloader.
@@ -67,8 +68,8 @@ spegnimento/accensione dal telecomando, display FD655, entrambe le USB.
 
 1. **Salva il firmware attuale**, se ce l'hai, oppure trova quello originale della tua revisione.
 2. Servono un cavo USB A-A (maschio-maschio) e PhoenixSuit (Windows) o OpenixSuit (Linux).
-3. Scarica `update.opi-t95-a12-b14-user.img.xz` dalle [Releases](../../releases) e decomprimilo
-   (7-Zip su Windows, `xz -d` su Linux), poi seleziona `update.opi-t95-a12-b14-user.img` e scegli il flash completo (Full Erase).
+3. Scarica `update.opi-t95-a12-b16-user.img.xz` dalle [Releases](../../releases) e decomprimilo
+   (7-Zip su Windows, `xz -d` su Linux), poi seleziona `update.opi-t95-a12-b16-user.img` e scegli il flash completo (Full Erase).
 4. A box spento tieni premuto il tasto reset (dentro il jack AV), collega l'USB al PC e rilascia il tasto
    dopo 3–5 s: il flash parte.
 5. Il primo avvio richiede circa 1–2 minuti.
@@ -101,7 +102,7 @@ sempre recuperare.
   di default. Via cavo USB adb non funziona perché la porta USB0 del T95 è solo host (manca il pin ID);
   il cavo A-A serve solo per il flash.
 - La pressione breve di power mette il box in sospensione, quella lunga apre il menu di spegnimento.
-  *Spegni* è uno standby profondo dentro BL31, non un distacco completo dell'alimentazione: l'alimentatore
+  *Spegni* è uno standby profondo (U-Boot + BL31), non un distacco completo dell'alimentazione: l'alimentatore
   resta sotto tensione e il box si riaccende dal telecomando. Per togliere del tutto la corrente, stacca
   l'alimentatore.
 - Al primo avvio il Bluetooth può partire con ~5 s di ritardo; si riprende da solo.
@@ -134,8 +135,9 @@ Nei sorgenti la scheda Zero 3 si chiama **p2** (prodotto `apollo_p2`). Le patch 
 | `patches/05-aosp-security-r34-r69.patch` | patch di sicurezza AOSP android-security-12.0.0_r34 → r69 (27 progetti), con i conflitti risolti e `make update-api`. Contiene anche una riga T95 in `system/bt/btif/src/btif_dm.cc` (nome BT da `bluetooth.device.default_name`) |
 | `patches/06-flauncher-v2025.07.001-t95.patch` | [FLauncher](https://github.com/osrosal/flauncher) (tag v2025.07.001): animazione di evidenziazione spenta di default. Build: Flutter 3.24.5, JDK 17, `flutter build apk --release --split-per-abi --target-platform android-arm64` |
 | `patches/08-poweroff-menu-t95.patch` | spegnimento e menu: pressione lunga di power = menu Spegni/Riavvia (overlay `apollo-t95` `config.xml`); pulsanti di SystemUI `GlobalActionsDialogLite` selezionabili con le frecce del telecomando (focus, bordo bianco); FD655 spento allo spegnimento (`fd655.rc` on shutdown); SELinux: audio.routing, dontaudit installd |
+| `patches/09-rtc-axp806-offctl-t95.patch` | correzione dell'azzeramento dell'RTC (b16): U-Boot (`pmu_axp806.c`) e il kernel (`axp2101.c`) spengono il bit 4 del registro 0x32 (OFF_CTL) dell'AXP806, che lo sboot binario accende. Con quel bit acceso ogni reset del SoC azzerava tutto il dominio RTC. Vedi [Spegnimento](#spegnimento) |
 | `patches/07-kernel-5.4.302-experimental/` | **esperimento, non incluso nella release**: vedi [Kernel](#kernel) |
-| `tools/bl31_t95_patch.py` | crea `bin/bl31_t95.bin` da `bl31.bin`: salta il "hardware check" che accetta solo H618 (0x1F4C) e aggiunge lo spegnimento vero (PSCI SYSTEM_OFF, 0x1CF0..0x1D00) |
+| `tools/bl31_t95_patch.py` | crea `bin/bl31_t95.bin` da `bl31.bin`: salta il "hardware check" che accetta solo H618 (0x1F4C). Con `--fakeoff` aggiunge anche il vecchio aggiramento dello spegnimento delle b13–b15 (PSCI SYSTEM_OFF, 0x1CF0..0x1D00), non più necessario dalla b16 |
 | `tools/t95_board_dts.py` | genera il `board.dts` t95 da quello p2 (il risultato è già nella patch 01) |
 | `tools/t95_sys_config.py` | genera il `sys_config.fex` t95 da quello p2 + il `sys_config.fex` del T95 originale |
 | `tools/gen_app_keys.sh` | genera le tue chiavi delle app (platform/media/shared/networkstack/releasekey) |
@@ -152,7 +154,7 @@ cd H618-Android12-Src
 cp -a longan/device/config/chips/h618/configs/p2 longan/device/config/chips/h618/configs/t95
 cp -a device/softwinner/apollo/apollo-p2 device/softwinner/apollo/apollo-t95
 cp    device/softwinner/apollo/apollo_p2.mk device/softwinner/apollo/apollo_t95.mk
-for p in 01 03a 03b 04 05 08; do git apply -p1 ../t95-h616-android12/patches/$p-*.patch; done   # oppure patch -p1 < ...
+for p in 01 03a 03b 04 05 08 09; do git apply -p1 ../t95-h616-android12/patches/$p-*.patch; done   # oppure patch -p1 < ...
 python3 ../t95-h616-android12/tools/bl31_t95_patch.py longan/device/config/chips/h618/bin/bl31.bin \
         longan/device/config/chips/h618/bin/bl31_t95.bin
 ```
@@ -183,9 +185,9 @@ source build/envsetup.sh && lunch apollo_t95-user && make -j10 && pack4dist -v
 
 ### Kernel
 
-La build di rilascio **non** modifica il codice del kernel: usa il kernel Allwinner 5.4.125 di
-H618-Android12-Src così com'è. Il kernel si adatta al T95 solo con la configurazione della scheda in longan
-(patch 01):
+La build di rilascio usa il kernel Allwinner 5.4.125 di H618-Android12-Src quasi così com'è: nel codice
+c'è solo una riga nel driver dell'AXP806 (patch 09, insieme alla correzione di U-Boot). Il kernel si adatta
+al T95 con la configurazione della scheda in longan (patch 01):
 
 - `linux-5.4/board.dts` (generato da `tools/t95_board_dts.py`): AXP806 al posto di AXP1530, eMMC DDR52,
   gmac1/AC200 (twi3, PA10/11), LED PH6/7, VBUS PH8, USB0 host, IR fe02/0x40, OPP, rilevamento SD su PI16.
@@ -194,8 +196,8 @@ H618-Android12-Src così com'è. Il kernel si adatta al T95 solo con la configur
 - `uboot-board.dts`: boot_clock 1008, AXP806, `sdc_io_1v8=0`. `pack` **non** unisce `sys_config` nel DT di
   U-Boot, quindi i valori per U-Boot vanno scritti direttamente in `uboot-board.dts`.
 - BL31: il `bl31.bin` dell'SDK non parte su H616 per un controllo che accetta solo H618, quindi
-  `tools/bl31_t95_patch.py` lo modifica. Lo stesso strumento aggiunge la correzione dello spegnimento
-  descritta sotto.
+  `tools/bl31_t95_patch.py` lo modifica (solo il "hardware check"; `--fakeoff` è il vecchio aggiramento
+  dello spegnimento, vedi sotto).
 
 `patches/07-kernel-5.4.302-experimental/` è un **esperimento** di aggiornamento del kernel alla 5.4.302.
 Il kernel Allwinner è Android Common Kernel (ACK) android12-5.4 + il BSP Allwinner, quindi l'aggiornamento
@@ -223,17 +225,32 @@ Lo schema *fake poweroff* di Allwinner funziona così:
 
 1. Il kernel (`CONFIG_SUNXI_FAKE_POWEROFF`) scrive 0xe in RTC GPR[2].
 2. BL31 SYSTEM_OFF lo cambia in 2 e resetta il SoC.
-3. U-Boot (`CONFIG_ATF_BOX_STANDBY`) chiama la SMC 0x8000ff14.
+3. U-Boot (`CONFIG_ATF_BOX_STANDBY`) chiama SMC 0x8000ff14.
 4. BL31 legge GPR[2]==2 e `/box_start_os0` dal DT, poi entra in standby con risveglio da IR.
 
-Sul T95 questo **non funziona**: qualsiasi reset azzera tutto il dominio RTC (tutti i GPR, ora riportata
-al 1970, ALARM0_DAY=0), quindi il flag si perde e il box semplicemente si riavviava. Non c'è un SCP
-separato, nemmeno nel firmware originale: lo standby gira tutto dentro BL31 (codice in SRAM A2 a 0x20000).
+Fino alla b15 sul T95 questo **non funzionava**: ogni reset azzerava tutto il dominio RTC (tutti i GPR,
+l'ora, ALARM0_DAY), il flag si perdeva e il box si riavviava. Con il firmware originale lo stesso box
+conserva i GPR al reset, quindi non era colpa dell'hardware.
 
-La correzione (`tools/bl31_t95_patch.py`): in PSCI SYSTEM_OFF, quando GPR[2]==0xe, BL31 chiama **subito**
-lo standby del box (funzione 0x1B2C con il DT salvato), senza reset. Quando il telecomando risveglia il
-box, BL31 resetta e il box fa un normale avvio a freddo (i GPR sono già vuoti). Kernel e U-Boot non sono
-modificati.
+**Causa (trovata l'11.10.2026):** il bit 4 del registro **0x32 (OFF_CTL)** dell'AXP806. Lo accende a ogni
+avvio lo sboot compilato dall'SDK (il suo codice PMIC sta nella libreria binaria
+`spl-pub/board/h616/libsun50iw9p1_sboot.a`); il firmware originale lo lascia a 0 (OFF_CTL = 0x26). Con il
+bit 4 acceso un reset del SoC azzera il dominio RTC. Il PMIC conserva il valore finché non si stacca
+l'alimentatore, per questo dopo il nostro firmware i GPR si perdevano anche con la catena di avvio originale.
+Verificato per bisezione sul box, da U-Boot (`sunxi_axp pmu write 0x32 …`, `mw 0x0700010c …`, `reset`):
+con 0x26 e 0x24 i GPR restano, con 0x36 e 0x34 si azzerano. Kernel, BL31, U-Boot e modo di reset sono stati
+esclusi sostituendo uno alla volta sboot, BL31 e U-Boot con quelli originali.
+
+**Correzione (b16, `patches/09`):** U-Boot spegne il bit 4 appena riconosce l'AXP806 (prima di qualsiasi
+reset) e il driver del kernel lo spegne di nuovo. Lo schema standard Allwinner qui sopra ora funziona senza
+modifiche, e ora e flag di riavvio sopravvivono al riavvio.
+
+**Vecchio aggiramento (b13–b15):** `tools/bl31_t95_patch.py --fakeoff` modifica PSCI SYSTEM_OFF: con
+GPR[2]==0xe BL31 chiama subito il box standby (funzione 0x1B2C con il DT salvato), senza reset. Funziona
+ancora, ma è una patch a un binario chiuso e non serve più.
+
+Non c'è un SCP separato, nemmeno nel firmware originale: lo standby gira tutto dentro BL31 (codice in SRAM A2
+a 0x20000).
 
 ## Sicurezza e chiavi
 
