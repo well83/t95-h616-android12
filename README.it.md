@@ -3,7 +3,8 @@
 # Android 12 pulito per il T95 (Allwinner H616)
 
 Android 12 (TV) per il TV box T95 H616 (il mio è un iconBIT TRS2048), compilato dai sorgenti ufficiali
-Orange Pi Zero 3 (`H618-Android12-Src`, BSP Allwinner, kernel 5.4.125) e portato sul T95.
+Orange Pi Zero 3 (`H618-Android12-Src`, BSP Allwinner) e portato sul T95. Dalla b18 il kernel è aggiornato
+da 5.4.125 a **5.4.302**.
 Niente app inutili, niente malware, con le patch di sicurezza AOSP.
 
 Questo repository contiene **le patch e gli strumenti** per ricompilare il firmware dai sorgenti.
@@ -21,7 +22,8 @@ pubblici.
 - SELinux **enforcing** (il firmware originale e l'SDK Allwinner usano permissive)
 - Patch di sicurezza AOSP **android-security-12.0.0_r34 → r69** (gennaio 2025) su 27 progetti (Bluetooth,
   frameworks/av, frameworks/base, webp, freetype, libxml2, skia, …). Livello patch **2025-01-01**: vale
-  solo per il framework, kernel e parte vendor restano quelli di Allwinner.
+  per il framework. Dalla b18 il kernel è **5.4.302** (correzioni LTS fino a dicembre 2025, l'ultima 5.4);
+  i binari chiusi di Allwinner (GPU, video, Wi-Fi) non si possono aggiornare.
 - Tutte le app di sistema e il secure boot (toc0/toc1/vbmeta) sono firmati con **le mie chiavi**, non con
   le chiavi pubbliche dell'SDK Allwinner che chiunque può usare
 - Launcher **FLauncher** (fork osrosal 2025.07.001), con l'animazione di evidenziazione delle schede spenta
@@ -68,8 +70,8 @@ spegnimento/accensione dal telecomando, display FD655, entrambe le USB.
 
 1. **Salva il firmware attuale**, se ce l'hai, oppure trova quello originale della tua revisione.
 2. Servono un cavo USB A-A (maschio-maschio) e PhoenixSuit (Windows) o OpenixSuit (Linux).
-3. Scarica `update.opi-t95-a12-b16-user.img.xz` dalle [Releases](../../releases) e decomprimilo
-   (7-Zip su Windows, `xz -d` su Linux), poi seleziona `update.opi-t95-a12-b16-user.img` e scegli il flash completo (Full Erase).
+3. Scarica `update.opi-t95-a12-b18-user.img.xz` dalle [Releases](../../releases) e decomprimilo
+   (7-Zip su Windows, `xz -d` su Linux), poi seleziona `update.opi-t95-a12-b18-user.img` e scegli il flash completo (Full Erase).
 4. A box spento tieni premuto il tasto reset (dentro il jack AV), collega l'USB al PC e rilascia il tasto
    dopo 3–5 s: il flash parte.
 5. Il primo avvio richiede circa 1–2 minuti.
@@ -136,7 +138,7 @@ Nei sorgenti la scheda Zero 3 si chiama **p2** (prodotto `apollo_p2`). Le patch 
 | `patches/06-flauncher-v2025.07.001-t95.patch` | [FLauncher](https://github.com/osrosal/flauncher) (tag v2025.07.001): animazione di evidenziazione spenta di default. Build: Flutter 3.24.5, JDK 17, `flutter build apk --release --split-per-abi --target-platform android-arm64` |
 | `patches/08-poweroff-menu-t95.patch` | spegnimento e menu: pressione lunga di power = menu Spegni/Riavvia (overlay `apollo-t95` `config.xml`); pulsanti di SystemUI `GlobalActionsDialogLite` selezionabili con le frecce del telecomando (focus, bordo bianco); FD655 spento allo spegnimento (`fd655.rc` on shutdown); SELinux: audio.routing, dontaudit installd |
 | `patches/09-rtc-axp806-offctl-t95.patch` | correzione dell'azzeramento dell'RTC (b16): U-Boot (`pmu_axp806.c`) e il kernel (`axp2101.c`) spengono il bit 4 del registro 0x32 (OFF_CTL) dell'AXP806, che lo sboot binario accende. Con quel bit acceso ogni reset del SoC azzerava tutto il dominio RTC. Vedi [Spegnimento](#spegnimento) |
-| `patches/07-kernel-5.4.302-experimental/` | **esperimento, non incluso nella release**: vedi [Kernel](#kernel) |
+| `patches/07-kernel-5.4.302/` | kernel 5.4.125 → 5.4.302 (dalla b18): script di merge ACK, conflitti risolti, 0001–0003 (0003 = correzione del blocco dopo la sospensione). Vedi [Kernel](#kernel) |
 | `tools/bl31_t95_patch.py` | crea `bin/bl31_t95.bin` da `bl31.bin`: salta il "hardware check" che accetta solo H618 (0x1F4C). Con `--fakeoff` aggiunge anche il vecchio aggiramento dello spegnimento delle b13–b15 (PSCI SYSTEM_OFF, 0x1CF0..0x1D00), non più necessario dalla b16 |
 | `tools/t95_board_dts.py` | genera il `board.dts` t95 da quello p2 (il risultato è già in `configs/t95`) |
 | `tools/t95_sys_config.py` | genera il `sys_config.fex` t95 da quello p2 + il `sys_config.fex` del T95 originale |
@@ -154,6 +156,8 @@ cd H618-Android12-Src
 cp -a ../t95-h616-android12/longan .                                   # cartella della scheda configs/t95
 cp -a device/softwinner/apollo/apollo-p2 device/softwinner/apollo/apollo-t95
 cp    device/softwinner/apollo/apollo_p2.mk device/softwinner/apollo/apollo_t95.mk
+bash ../t95-h616-android12/patches/07-kernel-5.4.302/merge-ack-5.4.302.sh longan/kernel/linux-5.4 ~/k302   # kernel 5.4.302
+rsync -a --delete --exclude=.git ~/k302/linux-5.4/ longan/kernel/linux-5.4/
 for p in 03a 03b 04 05 08 09; do git apply -p1 ../t95-h616-android12/patches/$p-*.patch; done   # oppure patch -p1 < ...
 python3 ../t95-h616-android12/tools/bl31_t95_patch.py longan/device/config/chips/h618/bin/bl31.bin \
         longan/device/config/chips/h618/bin/bl31_t95.bin
@@ -185,9 +189,32 @@ source build/envsetup.sh && lunch apollo_t95-user && make -j10 && pack4dist -v
 
 ### Kernel
 
-La build di rilascio usa il kernel Allwinner 5.4.125 di H618-Android12-Src quasi così com'è: nel codice
-c'è solo una riga nel driver dell'AXP806 (patch 09, insieme alla correzione di U-Boot). Il kernel si adatta
-al T95 con la configurazione della scheda in longan (`longan/device/config/chips/h618/configs/t95`):
+La build di rilascio (dalla b18) usa il kernel **5.4.302**. Il kernel Allwinner di H618-Android12-Src
+(5.4.125) è Android Common Kernel (ACK) android12-5.4 + il BSP Allwinner, quindi l'aggiornamento si fa con
+`git merge` del ramo ACK, non con delle patch (`patches/07-kernel-5.4.302/`):
+
+- `merge-ack-5.4.302.sh` scarica ACK (~3–4 GB, storia da 05/2021), crea il ramo `aw-base` (commit ACK
+  73e6d86c3, il più vicino al kernel AW, + albero AW), fa il merge di android12-5.4.302_r00 (250657e3e),
+  risolve 11 conflitti (`resolved/` contiene i file risolti) e applica:
+  - 0001: `sun50i-cpufreq-nvmem.c` = versione AW intera (il file unito non compila);
+  - 0002: `drivers/mmc/core` = versione AW;
+  - 0003: **correzione del blocco dopo la sospensione** (vedi sotto).
+- L'albero AW deve essere pulito (appena estratto, mai compilato). La patch 09 va applicata **dopo** aver
+  copiato l'albero in `longan/kernel/linux-5.4`. Quando si cambia versione del kernel, cancellare prima
+  `longan/out/kernel/{build,staging}`, altrimenti clang va in crash sulla vecchia configurazione.
+
+**Il blocco dopo la sospensione (0003).** Col 5.4.302 il box usciva dalla sospensione e pochi secondi dopo
+si bloccava del tutto (tutte le CPU, interrupt spenti, in un punto casuale). Una bisezione sulla storia ACK
+l'ha trovato: 5.4.288 buono, 5.4.290 cattivo. Il 5.4.290 ha portato l'upstream 2f8dea1692ee "hrtimers:
+Handle CPU state correctly on hotplug", che sposta l'azzeramento dello stato hrtimer di ogni CPU in una
+callback della fase di hotplug `CPUHP_AP_HRTIMERS_DYING`. ACK android12-5.4 però aveva annullato il commit
+che aggiunge quella fase (5c0930ccaad5, per l'ABI), quindi la callback non viene mai chiamata: dopo la
+sospensione le CPU secondarie ripartono con lo stato dei timer vecchio e il sistema si blocca. 0003 rimette
+l'azzeramento in `hrtimers_prepare_cpu()`. È un errore di ACK: riguarda ogni dispositivo android12-5.4 con
+kernel ≥ 5.4.290 che va in sospensione spegnendo le CPU.
+
+Il kernel si adatta al T95 con la configurazione della scheda in longan
+(`longan/device/config/chips/h618/configs/t95`):
 
 - `linux-5.4/board.dts` (generato da `tools/t95_board_dts.py`): AXP806 al posto di AXP1530, eMMC DDR52,
   gmac1/AC200 (twi3, PA10/11), LED PH6/7, VBUS PH8, USB0 host, IR fe02/0x40, OPP, rilevamento SD su PI16.
@@ -199,25 +226,8 @@ al T95 con la configurazione della scheda in longan (`longan/device/config/chips
   `tools/bl31_t95_patch.py` lo modifica (solo il "hardware check"; `--fakeoff` è il vecchio aggiramento
   dello spegnimento, vedi sotto).
 
-`patches/07-kernel-5.4.302-experimental/` è un **esperimento** di aggiornamento del kernel alla 5.4.302.
-Il kernel Allwinner è Android Common Kernel (ACK) android12-5.4 + il BSP Allwinner, quindi l'aggiornamento
-si fa con `git merge` del ramo ACK, non con delle patch:
-
-- `merge-ack-5.4.302.sh` scarica ACK (~3–4 GB, storia da 05/2021), crea il ramo `aw-base` (commit ACK
-  73e6d86c3, il più vicino al kernel AW, + albero AW), fa il merge di android12-5.4.302_r00 (250657e3e),
-  risolve 11 conflitti e applica 0001/0002.
-- `resolved/` contiene i file dopo la risoluzione dei conflitti.
-- Il risultato si avvia e funziona tutto (eth, Wi-Fi, BT, Mali, HDMI, IR, FD655, cpufreq), **ma**
-  all'uscita dalla sospensione il sistema si blocca durante la reinizializzazione della eMMC e il watchdog
-  lo resetta. Riportare `drivers/mmc/core` alla versione AW non è servito. Serve un bisect; i contributi
-  sono benvenuti.
-
-```sh
-bash patches/07-kernel-5.4.302-experimental/merge-ack-5.4.302.sh longan/kernel/linux-5.4 ~/k302
-rsync -a --delete --exclude=.git ~/k302/linux-5.4/ longan/kernel/linux-5.4/
-```
-
-L'albero AW deve essere pulito (appena estratto, mai compilato).
+Per compilare invece col kernel originale 5.4.125 (come nella b16), salta le due righe del kernel nella
+[Procedura](#procedura).
 
 ### Spegnimento
 
@@ -275,7 +285,7 @@ confermato che la build si avvia.
 - La cartella della scheda `longan/device/config/chips/h618/configs/t95/` deriva dalla configurazione del
   BSP Orange Pi / Allwinner (`configs/p2`) e mantiene la licenza di quei file.
 - Le patch ad AOSP, al BSP Allwinner e ai device tree seguono la licenza dei file che modificano
-  (soprattutto Apache-2.0; il kernel e i file in `patches/07-kernel-5.4.302-experimental/resolved/` sono
+  (soprattutto Apache-2.0; il kernel e i file in `patches/07-kernel-5.4.302/resolved/` sono
   GPL-2.0).
 - `patches/06-flauncher-v2025.07.001-t95.patch` è una modifica a FLauncher, che è GPL-3.0.
 - Gli strumenti in `tools/` e la documentazione sono sotto Apache-2.0 (vedi [LICENSE](LICENSE)).

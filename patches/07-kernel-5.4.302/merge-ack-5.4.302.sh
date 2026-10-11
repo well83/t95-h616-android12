@@ -1,8 +1,8 @@
 #!/bin/bash
-# ЭКСПЕРИМЕНТ: ядро Allwinner 5.4.125 (H618-Android12-Src) -> 5.4.302 (Android Common Kernel android12-5.4).
+# Ядро Allwinner 5.4.125 (H618-Android12-Src) -> 5.4.302 (Android Common Kernel android12-5.4), с b18 в релизе.
 # Ядро AW = ACK android12-5.4 (осень 2021) + BSP Allwinner, поэтому обновляем через git merge, а не патчами.
-# ВНИМАНИЕ: на T95 ядро 5.4.302 работает, но после выхода из сна (standby) система виснет при
-# переинициализации eMMC -> сброс watchdog. В релизную сборку НЕ вошло.
+# 0003 исправляет зависание после выхода из сна: ошибка ACK с 5.4.290 (hrtimers, см. сам патч).
+# Патч 09 (axp2101.c) накладывать ПОСЛЕ копирования этого дерева в longan/kernel/linux-5.4.
 #
 # Использование:
 #   bash merge-ack-5.4.302.sh <чистый longan/kernel/linux-5.4 из H618-Android12-Src> <рабочая папка>
@@ -57,7 +57,7 @@ git rm -q --ignore-unmatch drivers/net/can/sun4i_can.c
 git add -A
 git commit -q --no-edit
 
-# 4) исправления после merge
-git am -q "$HERE"/0001-cpufreq-nvmem-AW.patch "$HERE"/0002-mmc-core-AW.patch
+# 4) исправления после merge (0003 = зависание после сна)
+git am -q "$HERE"/0001-cpufreq-nvmem-AW.patch "$HERE"/0002-mmc-core-AW.patch "$HERE"/0003-hrtimers-prepare-cpu-reset.patch
 
-echo "t95-5.4.302 tree: $(git rev-parse HEAD^{tree})  (у меня: b5b7dff5033a2b2d9438b5791b0eaed23afc0de6)"
+echo "t95-5.4.302 tree: $(git rev-parse HEAD^{tree})  (у меня: 5769376faa4a4e77de21b658fb3d00a872f25d14)"

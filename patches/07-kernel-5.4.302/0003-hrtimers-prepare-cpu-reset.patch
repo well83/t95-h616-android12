@@ -1,0 +1,50 @@
+From d1cd4203e39c63d0314523ff77b7105d2b0465db Mon Sep 17 00:00:00 2001
+From: t95 <t95@local>
+Date: Sun, 11 Oct 2026 21:59:07 +0200
+Subject: [PATCH] hrtimers: reset per-CPU state in hrtimers_prepare_cpu() (T95,
+ ACK android12-5.4)
+
+ACK android12-5.4 reverted upstream 5c0930ccaad5 ("hrtimers: Push pending
+hrtimers away from outgoing CPU earlier") for ABI reasons, so there is no
+CPUHP_AP_HRTIMERS_DYING step. 5.4.290 then picked up 2f8dea1692ee
+("hrtimers: Handle CPU state correctly on hotplug"), which moves the reset of
+the per-CPU hrtimer state from hrtimers_prepare_cpu() into a new
+hrtimers_cpu_starting() callback registered on CPUHP_AP_HRTIMERS_DYING. Without
+that step the callback never runs on hotplug, so a CPU that comes back after
+suspend (disable_nonboot_cpus) keeps stale hres_active/next_timer/expires_next
+and the system hard-locks seconds after resume.
+
+Restore the reset in hrtimers_prepare_cpu(), as before 2f8dea1692ee.
+Found by bisect on an Allwinner H616 box: 5.4.288 good, 5.4.290 bad.
+---
+ kernel/time/hrtimer.c | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
+
+diff --git a/kernel/time/hrtimer.c b/kernel/time/hrtimer.c
+index c49c09b60..0d3838cc7 100644
+--- a/kernel/time/hrtimer.c
++++ b/kernel/time/hrtimer.c
+@@ -2066,6 +2066,20 @@ int hrtimers_prepare_cpu(unsigned int cpu)
+ 	}
+ 
+ 	cpu_base->cpu = cpu;
++	/*
++	 * T95: в ACK android12-5.4 откатили "hrtimers: Push pending hrtimers away from
++	 * outgoing CPU earlier" (нет состояния CPUHP_AP_HRTIMERS_DYING), поэтому
++	 * hrtimers_cpu_starting() при hotplug не вызывается. Состояние per-CPU сбрасываем
++	 * здесь, как до 2f8dea1692ee, иначе после сна (вторичные CPU выключаются и
++	 * включаются) остаются старые hres_active/next_timer -> система зависает.
++	 */
++	cpu_base->active_bases = 0;
++	cpu_base->hres_active = 0;
++	cpu_base->hang_detected = 0;
++	cpu_base->next_timer = NULL;
++	cpu_base->softirq_next_timer = NULL;
++	cpu_base->expires_next = KTIME_MAX;
++	cpu_base->softirq_expires_next = KTIME_MAX;
+ 	hrtimer_cpu_base_init_expiry_lock(cpu_base);
+ 	return 0;
+ }
+-- 
+2.56.0
+

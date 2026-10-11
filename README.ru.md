@@ -3,7 +3,8 @@
 # Чистый Android 12 для T95 (Allwinner H616)
 
 Android 12 (TV) для ТВ-приставки T95 H616 (у меня iconBIT TRS2048), собранный из официальных исходников
-Orange Pi Zero 3 (`H618-Android12-Src`, BSP Allwinner, ядро 5.4.125) и портированный на T95.
+Orange Pi Zero 3 (`H618-Android12-Src`, BSP Allwinner) и портированный на T95. С b18 ядро обновлено
+с 5.4.125 до **5.4.302**.
 Без мусора, без вирусов, с патчами безопасности AOSP.
 
 В этом репозитории — **патчи и инструменты** для сборки прошивки из исходников.
@@ -20,7 +21,8 @@ Orange Pi Zero 3 (`H618-Android12-Src`, BSP Allwinner, ядро 5.4.125) и по
 - SELinux в режиме **enforcing** (в стоке и у Allwinner — permissive)
 - Патчи безопасности AOSP **android-security-12.0.0_r34 → r69** (январь 2025) на 27 проектах (Bluetooth,
   frameworks/av, frameworks/base, webp, freetype, libxml2, skia и др.). Уровень патча **2025-01-01**
-  (только фреймворк; ядро и вендорная часть — от Allwinner)
+  (фреймворк). С b18 ядро **5.4.302** (исправления LTS до декабря 2025, последний выпуск 5.4); закрытые
+  бинарники Allwinner (GPU, видео, Wi-Fi) обновить нельзя
 - Все системные приложения и secure boot (toc0/toc1/vbmeta) подписаны **моими собственными ключами**
   (вместо публичных ключей SDK Allwinner, которыми может подписать кто угодно)
 - Лаунчер **FLauncher** (форк osrosal 2025.07.001), анимация подсветки карточек выключена по умолчанию
@@ -65,8 +67,8 @@ Ethernet AC200 (100 Мбит).
 
 1. **Сохраните свою текущую прошивку**, если она у вас есть (или найдите сток для своей ревизии).
 2. Нужен кабель USB A-A (папа-папа) и PhoenixSuit (Windows) или OpenixSuit (Linux).
-3. Скачайте `update.opi-t95-a12-b16-user.img.xz` из [Releases](../../releases) и распакуйте
-   (7-Zip в Windows, `xz -d` в Linux), затем выберите `update.opi-t95-a12-b16-user.img`, режим полной прошивки (Full Erase).
+3. Скачайте `update.opi-t95-a12-b18-user.img.xz` из [Releases](../../releases) и распакуйте
+   (7-Zip в Windows, `xz -d` в Linux), затем выберите `update.opi-t95-a12-b18-user.img`, режим полной прошивки (Full Erase).
 4. На выключенной приставке зажмите кнопку reset (в отверстии AV), подключите USB к ПК, отпустите кнопку
    через 3–5 с — начнётся прошивка.
 5. Первая загрузка ~1–2 минуты.
@@ -129,7 +131,7 @@ USB) находится в ПЗУ процессора, стереть его н
 | `patches/06-flauncher-v2025.07.001-t95.patch` | [FLauncher](https://github.com/osrosal/flauncher) (тег v2025.07.001): анимация подсветки выключена по умолчанию. Сборка: Flutter 3.24.5, JDK 17, `flutter build apk --release --split-per-abi --target-platform android-arm64` |
 | `patches/08-poweroff-menu-t95.patch` | выключение и меню: долгое нажатие power = меню Выключить/Перезагрузить (overlay `apollo-t95` `config.xml`), SystemUI `GlobalActionsDialogLite`: кнопки выбираются стрелками пульта (фокус, белая рамка), FD655 гаснет при выключении (`fd655.rc` on shutdown), SELinux: audio.routing, dontaudit installd |
 | `patches/09-rtc-axp806-offctl-t95.patch` | исправление сброса RTC (b16): U-Boot (`pmu_axp806.c`) и ядро (`axp2101.c`) сбрасывают бит 4 регистра AXP806 0x32 (OFF_CTL), который включает бинарный sboot. С ним каждый сброс SoC обнулял весь домен RTC. См. [Выключение](#выключение) |
-| `patches/07-kernel-5.4.302-experimental/` | **эксперимент, в релиз не вошло** — см. [Ядро](#ядро) |
+| `patches/07-kernel-5.4.302/` | ядро 5.4.125 → 5.4.302 (с b18): скрипт merge ACK, разрешённые конфликты, 0001–0003 (0003 — исправление зависания после сна). См. [Ядро](#ядро) |
 | `tools/bl31_t95_patch.py` | создаёт `bin/bl31_t95.bin` из `bl31.bin`: пропуск «hardware check» только для H618 (0x1F4C). С `--fakeoff` — ещё старый обход выключения из b13–b15 (PSCI SYSTEM_OFF, 0x1CF0..0x1D00), с b16 не нужен |
 | `tools/t95_board_dts.py` | генератор `board.dts` t95 из p2 (результат уже в `configs/t95`) |
 | `tools/t95_sys_config.py` | генератор `sys_config.fex` t95 из p2 + стокового `sys_config.fex` T95 |
@@ -145,6 +147,8 @@ cd H618-Android12-Src
 cp -a ../t95-h616-android12/longan .                                   # папка платы configs/t95
 cp -a device/softwinner/apollo/apollo-p2 device/softwinner/apollo/apollo-t95
 cp    device/softwinner/apollo/apollo_p2.mk device/softwinner/apollo/apollo_t95.mk
+bash ../t95-h616-android12/patches/07-kernel-5.4.302/merge-ack-5.4.302.sh longan/kernel/linux-5.4 ~/k302   # ядро 5.4.302
+rsync -a --delete --exclude=.git ~/k302/linux-5.4/ longan/kernel/linux-5.4/
 for p in 03a 03b 04 05 08 09; do git apply -p1 ../t95-h616-android12/patches/$p-*.patch; done   # или patch -p1 < ...
 python3 ../t95-h616-android12/tools/bl31_t95_patch.py longan/device/config/chips/h618/bin/bl31.bin \
         longan/device/config/chips/h618/bin/bl31_t95.bin
@@ -175,9 +179,30 @@ source build/envsetup.sh && lunch apollo_t95-user && make -j10 && pack4dist -v
 
 ### Ядро
 
-В релизной сборке ядро Allwinner 5.4.125 из H618-Android12-Src почти без изменений: в коде только одна
-строка в драйвере AXP806 (патч 09, вместе с исправлением U-Boot). Под T95 ядро адаптируется конфигурацией
-платы в longan (`longan/device/config/chips/h618/configs/t95`):
+В релизной сборке (с b18) ядро **5.4.302**. Ядро Allwinner из H618-Android12-Src (5.4.125) = Android
+Common Kernel (ACK) android12-5.4 + BSP Allwinner, поэтому обновление делается через `git merge` с веткой
+ACK, а не патчами (`patches/07-kernel-5.4.302/`):
+
+- `merge-ack-5.4.302.sh` скачивает ACK (~3–4 ГБ, история с 05.2021), создаёт ветку `aw-base` (коммит
+  ACK 73e6d86c3, ближайший к ядру AW, + дерево AW), делает merge android12-5.4.302_r00 (250657e3e),
+  разрешает 11 конфликтов (`resolved/` — файлы после разрешения) и применяет:
+  - 0001: `sun50i-cpufreq-nvmem.c` = версия AW целиком (после merge не собирается);
+  - 0002: `drivers/mmc/core` = версия AW;
+  - 0003: **исправление зависания после сна** (см. ниже).
+- Дерево AW должно быть чистым (только что распакованным, ни разу не собранным). Патч 09 накладывать
+  **после** копирования дерева в `longan/kernel/linux-5.4`. При смене версии ядра сначала удалить
+  `longan/out/kernel/{build,staging}`, иначе clang падает на старом конфиге.
+
+**Зависание после сна (0003).** С 5.4.302 бокс выходил из сна и через несколько секунд намертво зависал
+(все CPU, прерывания выключены, в случайном месте). Bisect по истории ACK: 5.4.288 — хорошо, 5.4.290 —
+плохо. В 5.4.290 пришёл upstream 2f8dea1692ee «hrtimers: Handle CPU state correctly on hotplug»: сброс
+состояния hrtimer каждого CPU перенесён в callback шага hotplug `CPUHP_AP_HRTIMERS_DYING`. Но в ACK
+android12-5.4 коммит, который добавляет этот шаг (5c0930ccaad5), откатили (ради ABI), и callback никогда
+не вызывается: после сна вторичные CPU возвращаются со старым состоянием таймеров, и система зависает.
+0003 возвращает сброс в `hrtimers_prepare_cpu()`. Это ошибка ACK: она касается любого устройства на
+android12-5.4 с ядром ≥ 5.4.290, которое засыпает с отключением CPU.
+
+Под T95 ядро адаптируется конфигурацией платы в longan (`longan/device/config/chips/h618/configs/t95`):
 
 - `linux-5.4/board.dts` (генератор `tools/t95_board_dts.py`): AXP806 вместо AXP1530, eMMC DDR52,
   gmac1/AC200 (twi3, PA10/11), LED PH6/7, VBUS PH8, USB0 host, ИК fe02/0x40, OPP, card detect SD PI16.
@@ -188,24 +213,7 @@ source build/envsetup.sh && lunch apollo_t95-user && make -j10 && pack4dist -v
 - BL31: `bl31.bin` из SDK на H616 не стартует (проверка «только H618») → `tools/bl31_t95_patch.py`
   (только «hardware check»; `--fakeoff` — старый обход выключения, см. ниже).
 
-`patches/07-kernel-5.4.302-experimental/` — **эксперимент** с обновлением ядра до 5.4.302. Ядро AW =
-Android Common Kernel (ACK) android12-5.4 + BSP Allwinner, поэтому обновление делается через `git merge`
-с веткой ACK, а не патчами:
-
-- `merge-ack-5.4.302.sh` скачивает ACK (~3–4 ГБ, история с 05.2021), создаёт ветку `aw-base` (коммит
-  ACK 73e6d86c3, ближайший к ядру AW, + дерево AW), делает merge android12-5.4.302_r00 (250657e3e),
-  разрешает 11 конфликтов, применяет 0001/0002.
-- `resolved/` — готовые файлы после разрешения конфликтов.
-- Результат загружается, работает всё (eth, WiFi, BT, Mali, HDMI, ИК, FD655, cpufreq), **но** после
-  выхода из сна система виснет при переинициализации eMMC → сброс watchdog. Откат `drivers/mmc/core` на
-  AW не помог. Нужен bisect — кто хочет, пробуйте.
-
-```sh
-bash patches/07-kernel-5.4.302-experimental/merge-ack-5.4.302.sh longan/kernel/linux-5.4 ~/k302
-rsync -a --delete --exclude=.git ~/k302/linux-5.4/ longan/kernel/linux-5.4/
-```
-
-Дерево AW должно быть чистым (только что распакованным, ни разу не собранным).
+Чтобы собрать с исходным ядром 5.4.125 (как в b16), пропустите две строки про ядро в разделе [Порядок](#порядок).
 
 ### Выключение
 
@@ -259,7 +267,7 @@ T95 бывают с другим PMIC (например AXP313A/AXP1530), пам
 - Папка платы `longan/device/config/chips/h618/configs/t95/` сделана из конфигурации BSP Orange Pi /
   Allwinner (`configs/p2`) и остаётся под лицензией этих файлов.
 - Патчи к AOSP, BSP Allwinner и device tree — под лицензией изменяемых файлов (в основном Apache-2.0;
-  ядро и файлы в `patches/07-kernel-5.4.302-experimental/resolved/` — GPL-2.0).
+  ядро и файлы в `patches/07-kernel-5.4.302/resolved/` — GPL-2.0).
 - `patches/06-flauncher-v2025.07.001-t95.patch` — изменение FLauncher, GPL-3.0.
 - Инструменты в `tools/` и документация — Apache-2.0 (см. [LICENSE](LICENSE)).
 - Предустановленные приложения не изменены (кроме FLauncher), лицензии и подписи — авторов.

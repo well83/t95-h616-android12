@@ -3,7 +3,8 @@
 # Clean Android 12 for the T95 (Allwinner H616)
 
 Android 12 (TV) for the T95 H616 TV box (mine is an iconBIT TRS2048). I built it from the official
-Orange Pi Zero 3 sources (`H618-Android12-Src`, Allwinner BSP, kernel 5.4.125) and ported it to the T95.
+Orange Pi Zero 3 sources (`H618-Android12-Src`, Allwinner BSP) and ported it to the T95. Since b18 the kernel
+is updated from 5.4.125 to **5.4.302**.
 It has no bloatware and no malware, and it includes AOSP security patches.
 
 This repository contains **the patches and tools** needed to rebuild the firmware from the sources.
@@ -20,7 +21,8 @@ servers. Instead of cleaning it, I rebuilt Android 12 from scratch, starting fro
 - SELinux **enforcing** (stock firmware and the Allwinner SDK use permissive)
 - AOSP security patches **android-security-12.0.0_r34 → r69** (January 2025) on 27 projects (Bluetooth,
   frameworks/av, frameworks/base, webp, freetype, libxml2, skia, …). Security patch level **2025-01-01**.
-  This covers the framework only; the kernel and vendor parts are Allwinner's.
+  This covers the framework. Since b18 the kernel is **5.4.302** (LTS fixes up to December 2025, the last 5.4
+  release); the closed-source Allwinner vendor blobs (GPU, video, Wi-Fi) cannot be updated.
 - All system apps and secure boot (toc0/toc1/vbmeta) are signed with **my own keys**, not with the public
   Allwinner SDK keys that anyone can use
 - **FLauncher** launcher (osrosal fork 2025.07.001), with the card highlight animation off by default. With it
@@ -66,8 +68,8 @@ remote, FD655 display, both USB ports.
 
 1. **Back up your current firmware** if you have it, or find the stock firmware for your revision.
 2. You need a USB A-A (male-male) cable and PhoenixSuit (Windows) or OpenixSuit (Linux).
-3. Download `update.opi-t95-a12-b16-user.img.xz` from [Releases](../../releases) and decompress it
-   (7-Zip on Windows, `xz -d` on Linux), then select `update.opi-t95-a12-b16-user.img` and choose a full flash (Full Erase).
+3. Download `update.opi-t95-a12-b18-user.img.xz` from [Releases](../../releases) and decompress it
+   (7-Zip on Windows, `xz -d` on Linux), then select `update.opi-t95-a12-b18-user.img` and choose a full flash (Full Erase).
 4. With the box off, hold the reset button (inside the AV jack), connect USB to the PC, and release the
    button after 3–5 s. Flashing starts.
 5. The first boot takes about 1–2 minutes.
@@ -131,7 +133,7 @@ and a new product **apollo_t95**. Build host: Ubuntu 22.04.
 | `patches/06-flauncher-v2025.07.001-t95.patch` | [FLauncher](https://github.com/osrosal/flauncher) (tag v2025.07.001): highlight animation off by default. Build: Flutter 3.24.5, JDK 17, `flutter build apk --release --split-per-abi --target-platform android-arm64` |
 | `patches/08-poweroff-menu-t95.patch` | power off and menu: long press on power opens Power off / Restart (`apollo-t95` overlay `config.xml`); SystemUI `GlobalActionsDialogLite` buttons selectable with the remote arrows (focus, white frame); FD655 turns off at shutdown (`fd655.rc` on shutdown); SELinux: audio.routing, dontaudit installd |
 | `patches/09-rtc-axp806-offctl-t95.patch` | fix for the RTC reset (b16): U-Boot (`pmu_axp806.c`) and the kernel (`axp2101.c`) clear bit 4 of AXP806 register 0x32 (OFF_CTL), which the binary sboot sets. With it set, every SoC reset cleared the whole RTC domain. See [Power off](#power-off) |
-| `patches/07-kernel-5.4.302-experimental/` | **experiment, not in the release**: see [Kernel](#kernel) |
+| `patches/07-kernel-5.4.302/` | kernel 5.4.125 → 5.4.302 (since b18): ACK merge script, resolved conflicts, 0001–0003 (0003 = fix for the hang after sleep). See [Kernel](#kernel) |
 | `tools/bl31_t95_patch.py` | creates `bin/bl31_t95.bin` from `bl31.bin`: skips the H618-only "hardware check" (0x1F4C). With `--fakeoff` it also adds the old power-off workaround of b13–b15 (PSCI SYSTEM_OFF, 0x1CF0..0x1D00), not needed since b16 |
 | `tools/t95_board_dts.py` | generates the t95 `board.dts` from p2 (output already in `configs/t95`) |
 | `tools/t95_sys_config.py` | generates the t95 `sys_config.fex` from p2 + the stock T95 `sys_config.fex` |
@@ -149,6 +151,8 @@ cd H618-Android12-Src
 cp -a ../t95-h616-android12/longan .                                   # board folder configs/t95
 cp -a device/softwinner/apollo/apollo-p2 device/softwinner/apollo/apollo-t95
 cp    device/softwinner/apollo/apollo_p2.mk device/softwinner/apollo/apollo_t95.mk
+bash ../t95-h616-android12/patches/07-kernel-5.4.302/merge-ack-5.4.302.sh longan/kernel/linux-5.4 ~/k302   # kernel 5.4.302
+rsync -a --delete --exclude=.git ~/k302/linux-5.4/ longan/kernel/linux-5.4/
 for p in 03a 03b 04 05 08 09; do git apply -p1 ../t95-h616-android12/patches/$p-*.patch; done   # or patch -p1 < ...
 python3 ../t95-h616-android12/tools/bl31_t95_patch.py longan/device/config/chips/h618/bin/bl31.bin \
         longan/device/config/chips/h618/bin/bl31_t95.bin
@@ -180,9 +184,31 @@ source build/envsetup.sh && lunch apollo_t95-user && make -j10 && pack4dist -v
 
 ### Kernel
 
-The release build uses the Allwinner 5.4.125 kernel from H618-Android12-Src almost as is: the only source
-change is one line in the AXP806 driver (patch 09, together with the U-Boot fix). The kernel is adapted to
-the T95 through the longan board configuration (`longan/device/config/chips/h618/configs/t95`):
+The release build (since b18) uses kernel **5.4.302**. The Allwinner kernel from H618-Android12-Src (5.4.125)
+is Android Common Kernel (ACK) android12-5.4 + the Allwinner BSP, so the update is a `git merge` with the
+ACK branch, not a set of patches (`patches/07-kernel-5.4.302/`):
+
+- `merge-ack-5.4.302.sh` downloads ACK (~3–4 GB, history since 05/2021), creates an `aw-base` branch
+  (ACK commit 73e6d86c3, the closest to the AW kernel, + the AW tree), merges android12-5.4.302_r00
+  (250657e3e), resolves 11 conflicts (`resolved/` holds the files after resolution) and applies:
+  - 0001: `sun50i-cpufreq-nvmem.c` = the whole AW version (the merged file does not build);
+  - 0002: `drivers/mmc/core` = the AW version;
+  - 0003: **fix for the hang after sleep** (see below).
+- The AW tree must be clean (freshly extracted, never built). Apply patch 09 **after** copying the merged
+  tree into `longan/kernel/linux-5.4`. When switching between kernel versions, delete
+  `longan/out/kernel/{build,staging}` first, otherwise clang crashes on the old config.
+
+**The hang after sleep (0003).** With 5.4.302 the box resumed from sleep and hard-locked a few seconds later
+(all CPUs, interrupts off, at a random point). A bisect over the ACK history found it: 5.4.288 good,
+5.4.290 bad. 5.4.290 brought upstream 2f8dea1692ee "hrtimers: Handle CPU state correctly on hotplug",
+which moves the reset of the per-CPU hrtimer state into a callback on the `CPUHP_AP_HRTIMERS_DYING`
+hotplug step. ACK android12-5.4 had reverted the commit that adds that step (5c0930ccaad5, for ABI
+reasons), so the callback never runs: after suspend the secondary CPUs come back with stale timer state
+and the system locks up. 0003 restores the reset in `hrtimers_prepare_cpu()`. This is an ACK bug and
+affects any android12-5.4 device with kernel ≥ 5.4.290 that suspends with CPU hotplug.
+
+The kernel is adapted to the T95 through the longan board configuration
+(`longan/device/config/chips/h618/configs/t95`):
 
 - `linux-5.4/board.dts` (generated by `tools/t95_board_dts.py`): AXP806 instead of AXP1530, eMMC DDR52,
   gmac1/AC200 (twi3, PA10/11), LEDs PH6/7, VBUS PH8, USB0 host, IR fe02/0x40, OPP, SD card detect PI16.
@@ -193,24 +219,7 @@ the T95 through the longan board configuration (`longan/device/config/chips/h618
 - BL31: the SDK `bl31.bin` doesn't start on H616 because of an H618-only check, so `tools/bl31_t95_patch.py`
   patches it (only the "hardware check"; `--fakeoff` is the old power-off workaround, see below).
 
-`patches/07-kernel-5.4.302-experimental/` is an **experiment** to update the kernel to 5.4.302. The
-Allwinner kernel is Android Common Kernel (ACK) android12-5.4 + the Allwinner BSP, so the update is a
-`git merge` with the ACK branch, not a set of patches:
-
-- `merge-ack-5.4.302.sh` downloads ACK (~3–4 GB, history since 05/2021), creates an `aw-base` branch
-  (ACK commit 73e6d86c3, the closest to the AW kernel, + the AW tree), merges android12-5.4.302_r00
-  (250657e3e), resolves 11 conflicts and applies 0001/0002.
-- `resolved/` holds the files after conflict resolution.
-- The result boots and everything works (eth, Wi-Fi, BT, Mali, HDMI, IR, FD655, cpufreq), **but** the
-  system hangs while reinitialising the eMMC after resuming from sleep, and the watchdog resets it.
-  Reverting `drivers/mmc/core` to the AW version did not help. It needs a bisect; contributions welcome.
-
-```sh
-bash patches/07-kernel-5.4.302-experimental/merge-ack-5.4.302.sh longan/kernel/linux-5.4 ~/k302
-rsync -a --delete --exclude=.git ~/k302/linux-5.4/ longan/kernel/linux-5.4/
-```
-
-The AW tree must be clean (freshly extracted, never built).
+To build the original 5.4.125 kernel instead (as in b16), skip the two kernel lines in [Steps](#steps).
 
 ### Power off
 
@@ -266,7 +275,7 @@ running this firmware. If you build your own image, generate your own keys.
 - The board folder `longan/device/config/chips/h618/configs/t95/` is derived from the Orange Pi /
   Allwinner BSP configuration (`configs/p2`) and keeps the license of those files.
 - Patches to AOSP, the Allwinner BSP and device trees follow the license of the files they modify
-  (mostly Apache-2.0; the kernel and the files in `patches/07-kernel-5.4.302-experimental/resolved/` are
+  (mostly Apache-2.0; the kernel and the files in `patches/07-kernel-5.4.302/resolved/` are
   GPL-2.0).
 - `patches/06-flauncher-v2025.07.001-t95.patch` is a change to FLauncher, which is GPL-3.0.
 - The tools in `tools/` and the documentation are under Apache-2.0 (see [LICENSE](LICENSE)).
