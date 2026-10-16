@@ -2,7 +2,7 @@
 
 # Чистый Android 12 для T95 (Allwinner H616)
 
-Android 12 (TV) для ТВ-приставки T95 H616 (у меня iconBIT TRS2048), собранный из официальных исходников
+Android 12 (TV) для ТВ-приставки T95 H616, собранный из официальных исходников
 Orange Pi Zero 3 (`H618-Android12-Src`, BSP Allwinner) и портированный на T95. С b18 ядро обновлено
 с 5.4.125 до **5.4.302**.
 Без мусора, без вирусов, с патчами безопасности AOSP.
@@ -51,7 +51,7 @@ Google-сервисов (GApps) нет. Приложения — через F-Dr
 
 ## Проверено на
 
-iconBIT TRS2048 / T95, Allwinner H616, 4 ГБ ОЗУ, PMIC **AXP806**, Wi-Fi/BT **UWE5622**,
+T95, Allwinner H616, 4 ГБ ОЗУ, PMIC **AXP806**, Wi-Fi/BT **UWE5622**,
 Ethernet AC200 (100 Мбит).
 
 **Работает:** загрузка, HDMI 1080p, Ethernet, Wi-Fi 2,4/5 ГГц, Bluetooth (колонка A2DP), аппаратное

@@ -2,7 +2,7 @@
 
 # Clean Android 12 for the T95 (Allwinner H616)
 
-Android 12 (TV) for the T95 H616 TV box (mine is an iconBIT TRS2048). I built it from the official
+Android 12 (TV) for the T95 H616 TV box. I built it from the official
 Orange Pi Zero 3 sources (`H618-Android12-Src`, Allwinner BSP) and ported it to the T95. Since b18 the kernel
 is updated from 5.4.125 to **5.4.302**.
 It has no bloatware and no malware, and it includes AOSP security patches.
@@ -52,7 +52,7 @@ No Google services (GApps). To install apps, use F-Droid, Aurora Store (availabl
 
 ## Tested hardware
 
-iconBIT TRS2048 / T95, Allwinner H616, 4 GB RAM, PMIC **AXP806**, Wi-Fi/BT **UWE5622**,
+T95, Allwinner H616, 4 GB RAM, PMIC **AXP806**, Wi-Fi/BT **UWE5622**,
 Ethernet AC200 (100 Mbit).
 
 **Works:** boot, HDMI 1080p, Ethernet, Wi-Fi 2.4/5 GHz, Bluetooth (A2DP speaker), hardware video

@@ -2,7 +2,7 @@
 
 # Android 12 pulito per il T95 (Allwinner H616)
 
-Android 12 (TV) per il TV box T95 H616 (il mio è un iconBIT TRS2048), compilato dai sorgenti ufficiali
+Android 12 (TV) per il TV box T95 H616, compilato dai sorgenti ufficiali
 Orange Pi Zero 3 (`H618-Android12-Src`, BSP Allwinner) e portato sul T95. Dalla b18 il kernel è aggiornato
 da 5.4.125 a **5.4.302**.
 Niente app inutili, niente malware, con le patch di sicurezza AOSP.
@@ -54,7 +54,7 @@ o Downloader.
 
 ## Hardware provato
 
-iconBIT TRS2048 / T95, Allwinner H616, 4 GB RAM, PMIC **AXP806**, Wi-Fi/BT **UWE5622**,
+T95, Allwinner H616, 4 GB RAM, PMIC **AXP806**, Wi-Fi/BT **UWE5622**,
 Ethernet AC200 (100 Mbit).
 
 **Funziona:** avvio, HDMI 1080p, Ethernet, Wi-Fi 2,4/5 GHz, Bluetooth (cassa A2DP), decodifica video
