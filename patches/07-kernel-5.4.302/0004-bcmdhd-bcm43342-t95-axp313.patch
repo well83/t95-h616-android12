@@ -1,0 +1,28 @@
+From d10d8b853b6b56b5c096512a4005b6d5631a56c4 Mon Sep 17 00:00:00 2001
+From: well83 <well83@users.noreply.github.com>
+Date: Mon, 12 Oct 2026 10:27:15 +0200
+Subject: [PATCH] bcmdhd: add BCM43342 firmware name (LG642 / AP6334 clone, T95
+ AXP313A)
+
+Stock T95 firmware A27/A29 maps chip 43342 rev 1 to fw_bcm43342_ag.bin.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ drivers/net/wireless/bcmdhd/dhd_config.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/drivers/net/wireless/bcmdhd/dhd_config.c b/drivers/net/wireless/bcmdhd/dhd_config.c
+index 0ac1919c9..5ab0a75c0 100644
+--- a/drivers/net/wireless/bcmdhd/dhd_config.c
++++ b/drivers/net/wireless/bcmdhd/dhd_config.c
+@@ -80,6 +80,7 @@ const cihp_name_map_t chip_name_map[] = {
+ 	{BCM4334_CHIP_ID,	3,	DONT_CARE,	FALSE,	"bcm4334b1_ag",		""},
+ 	{BCM43340_CHIP_ID,	2,	DONT_CARE,	FALSE,	"bcm43341b0_ag",	""},
+ 	{BCM43341_CHIP_ID,	2,	DONT_CARE,	FALSE,	"bcm43341b0_ag",	""},
++	{BCM43342_CHIP_ID,	1,	DONT_CARE,	FALSE,	"bcm43342_ag",		""},
+ 	{BCM4324_CHIP_ID,	5,	DONT_CARE,	FALSE,	"bcm43241b4_ag",	""},
+ 	{BCM4335_CHIP_ID,	2,	DONT_CARE,	FALSE,	"bcm4339a0_ag",		""},
+ 	{BCM4339_CHIP_ID,	1,	DONT_CARE,	FALSE,	"bcm4339a0_ag",		""},
+-- 
+2.56.0
+

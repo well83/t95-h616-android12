@@ -1,0 +1,262 @@
+--- a/device/softwinner/apollo/apollo-t95/BoardConfig.mk	2026-10-18 11:15:25.706193884 +0200
++++ b/device/softwinner/apollo/apollo-t95/BoardConfig.mk	2026-10-18 11:15:25.706798128 +0200
+@@ -5,6 +5,11 @@
+ # must include common BoardConfig.mk in the end
+ # T95: SELinux enforcing (riga AW "androidboot.selinux=permissive" tolta); regole T95 in apollo-t95/sepolicy
+ BOARD_SEPOLICY_DIRS += $(PRODUCT_PLATFORM_PATH)/apollo-t95/sepolicy
++# правила сборщика логов t95log (работает только с T95_LOGGER=1, правила есть всегда)
++SYSTEM_EXT_PRIVATE_SEPOLICY_DIRS += $(PRODUCT_PLATFORM_PATH)/apollo-t95/t95log/sepolicy
++ifeq ($(T95_LOGGER),1)
++BOARD_KERNEL_CMDLINE += log_buf_len=2M
++endif
+ BOARD_KERNEL_CMDLINE += androidboot.dtbo_idx=0,1,2
+ BOARD_KERNEL_CMDLINE += firmware_class.path=/vendor/etc/firmware
+ 
+--- a/device/softwinner/apollo/apollo-t95/sepolicy/genfs_contexts	2026-10-18 11:15:25.711509105 +0200
++++ b/device/softwinner/apollo/apollo-t95/sepolicy/genfs_contexts	2026-10-18 11:15:25.712004938 +0200
+@@ -14,3 +14,5 @@
+ genfscon sysfs /devices/platform/soc@3000000/7081400.twi/i2c-5/5-0036/wakeup     u:object_r:sysfs_wakeup:s0
+ genfscon sysfs /devices/platform/uwe_bsp.0/wakeup                               u:object_r:sysfs_wakeup:s0
+ genfscon sysfs /devices/platform/soc@3000000/7000000.rtc/rtc/rtc0/wakeup         u:object_r:sysfs_wakeup:s0
++# T95-AXP313: init пишет s2idle в /sys/power/mem_sleep (t95/axp313-s2idle.rc); с общей меткой sysfs запись запрещена
++genfscon sysfs /power/mem_sleep                                                u:object_r:sysfs_power:s0
+--- a/device/softwinner/apollo/apollo-t95/sepolicy/untrusted_app.te	1970-01-01 01:00:00.000000000 +0100
++++ b/device/softwinner/apollo/apollo-t95/sepolicy/untrusted_app.te	2026-10-18 11:15:25.713691669 +0200
+@@ -0,0 +1,8 @@
++# T95: приложения (мониторы ресурсов, CPU-Z...) читают температуру из /sys/class/thermal (только чтение,
++# разрешено правилами neverallow в app_neverallows.te). Просьба пользователя 4PDA 14.10.2026.
++allow untrusted_app_all sysfs_thermal:dir r_dir_perms;
++allow untrusted_app_all sysfs_thermal:file r_file_perms;
++allow untrusted_app_all sysfs_thermal:lnk_file read;
++# thermal_zone0/temp (датчик CPU) имеет метку AW sysfs_temp (vendor/aw/homlet/sepolicy/genfs_contexts), а не sysfs_thermal.
++# Отчёт n-keil по test6 (18.10): после перезагрузки приложение не показывает температуру.
++allow untrusted_app_all sysfs_temp:file r_file_perms;
+--- a/device/softwinner/apollo/apollo-t95/t95/axp313-s2idle.rc	1970-01-01 01:00:00.000000000 +0100
++++ b/device/softwinner/apollo/apollo-t95/t95/axp313-s2idle.rc	2026-10-18 11:15:25.715466177 +0200
+@@ -0,0 +1,5 @@
++# T95-AXP313 (только T95_BOARD=t95-axp313): «лёгкий» сон s2idle вместо deep (suspend-to-RAM через прошивку сна BL31/PMIC).
++# На плате AXP313A выход из deep не работает (включается только передёргиванием питания); в s2idle процессоры
++# остаются в WFI, память и PMIC под питанием, систему будит ИК-пульт (s_cir0 wakeup-source).
++on boot
++    write /sys/power/mem_sleep s2idle
+--- a/device/softwinner/apollo/apollo-t95/t95log/sepolicy/file_contexts	1970-01-01 01:00:00.000000000 +0100
++++ b/device/softwinner/apollo/apollo-t95/t95log/sepolicy/file_contexts	2026-10-18 11:15:25.730560324 +0200
+@@ -0,0 +1,2 @@
++/(system_ext|system/system_ext)/bin/t95log\.sh   u:object_r:t95log_exec:s0
++/data/misc/t95log(/.*)?      u:object_r:t95log_data_file:s0
+--- a/device/softwinner/apollo/apollo-t95/t95log/sepolicy/t95log.te	1970-01-01 01:00:00.000000000 +0100
++++ b/device/softwinner/apollo/apollo-t95/t95log/sepolicy/t95log.te	2026-10-18 11:15:25.728625549 +0200
+@@ -0,0 +1,38 @@
++# T95, тестовые сборки: /system_ext/bin/t95log.sh собирает dmesg/logcat/info в /data/misc/t95log и /sdcard/T95_LOG
++type t95log, domain, coredomain;
++type t95log_exec, exec_type, system_file_type, file_type;
++type t95log_data_file, file_type, data_file_type, core_data_file_type;
++init_daemon_domain(t95log)
++
++allow t95log shell_exec:file rx_file_perms;
++allow t95log toolbox_exec:file rx_file_perms;
++allow t95log system_file:file rx_file_perms;
++
++allow t95log self:global_capability2_class_set syslog;
++
++# работает как media_rw (владелец /data/media/0): без dac_override; dmesg через CAP_SYSLOG
++allow t95log kernel:system syslog_read;
++# logcat
++read_logd(t95log)
++
++# getprop: читает что может, не засоряя лог отказами
++dontaudit t95log property_type:file r_file_perms;
++
++# /data/misc/t95log
++allow t95log system_data_file:dir r_dir_perms;
++allow t95log t95log_data_file:dir create_dir_perms;
++allow t95log t95log_data_file:file create_file_perms;
++# /sdcard/T95_LOG (= /data/media/0)
++allow t95log media_rw_data_file:dir create_dir_perms;
++allow t95log media_rw_data_file:file create_file_perms;
++
++# информация о системе
++allow t95log { proc_cmdline proc_version proc_meminfo proc_cpuinfo proc_modules proc_interrupts proc_uptime }:file r_file_perms;
++allow t95log sysfs:dir r_dir_perms;
++allow t95log sysfs:lnk_file read;
++allow t95log sysfs_devices_system_cpu:dir r_dir_perms;
++allow t95log sysfs_devices_system_cpu:file r_file_perms;
++allow t95log sysfs_thermal:dir r_dir_perms;
++allow t95log sysfs_thermal:{ file lnk_file } r_file_perms;
++allow t95log sysfs_net:dir r_dir_perms;
++allow t95log sysfs_net:{ file lnk_file } r_file_perms;
+--- a/device/softwinner/apollo/apollo-t95/t95log/t95log.rc	1970-01-01 01:00:00.000000000 +0100
++++ b/device/softwinner/apollo/apollo-t95/t95log/t95log.rc	2026-10-18 11:15:25.726511149 +0200
+@@ -0,0 +1,12 @@
++# T95, тестовые сборки: логи в файлы (см. /system_ext/bin/t95log.sh)
++# не oneshot: если процесс убит, init перезапустит его (скрипт продолжит в той же папке boot_NNN)
++on post-fs-data
++    mkdir /data/misc/t95log 0770 media_rw media_rw
++    start t95log
++
++service t95log /system_ext/bin/t95log.sh
++    user media_rw
++    group media_rw log readproc
++    capabilities SYSLOG
++    disabled
++
+--- a/device/softwinner/apollo/apollo-t95/t95log/t95log.sh	1970-01-01 01:00:00.000000000 +0100
++++ b/device/softwinner/apollo/apollo-t95/t95log/t95log.sh	2026-10-18 11:15:25.724464329 +0200
+@@ -0,0 +1,80 @@
++#!/system/bin/sh
++# T95, тестовые сборки: собирает лог ядра (dmesg = то, что идёт в UART после U-Boot) + logcat + информацию о системе.
++# Во время загрузки пишет в /data/misc/t95log/boot_NN (сохраняется, даже если загрузка не дошла до конца: копируется при следующей);
++# как только память пользователя разблокирована, копирует всё в /sdcard/T95_LOG (Material Files -> T95_LOG, для отправки).
++B=/data/misc/t95log
++OUT=/data/media/0/T95_LOG
++KEEP=6
++
++# удаляет самые старые папки boot_*, оставляя $KEEP
++prune() {
++  n=$(ls -d $1/boot_[0-9]* 2>/dev/null | wc -l)
++  for o in $(ls -d $1/boot_[0-9]* 2>/dev/null | sort); do
++    [ $n -le $KEEP ] && break
++    rm -rf $o; n=$(( n - 1 ))
++  done
++}
++
++# одна папка на всю загрузку, даже если init перезапускает сервис (boot_id меняется только при загрузке)
++BID=$(cat /proc/sys/kernel/random/boot_id 2>/dev/null)
++if [ -n "$BID" ] && [ "$BID" = "$(cat $B/boot_id 2>/dev/null)" ] && [ -d "$(cat $B/current 2>/dev/null)" ]; then
++  D=$(cat $B/current)
++else
++  N=$(cat $B/counter 2>/dev/null); N=$(( ${N:-0} + 1 )); echo $N > $B/counter
++  D=$B/$(printf boot_%03d $N)
++  mkdir -p $D
++  echo "$BID" > $B/boot_id; echo $D > $B/current
++fi
++# ошибки команд + строка на каждый проход (чтобы понять, остановился ли сборщик и когда)
++exec 2>>$D/t95log_err.txt
++echo "=== start pid $$ uptime $(cat /proc/uptime)" >&2
++# хранит только последние $KEEP загрузок
++prune $B
++
++info() {
++  # NB: здесь без глобальных переменных (с "t" основной цикл умирал после первого прохода)
++  echo "=== date";        date
++  echo "=== uptime";      cat /proc/uptime
++  echo "=== cmdline";     cat /proc/cmdline
++  echo "=== version";     cat /proc/version
++  echo "=== meminfo";     cat /proc/meminfo
++  echo "=== cpuinfo";     cat /proc/cpuinfo
++  echo "=== cpufreq"
++  for c in /sys/devices/system/cpu/cpu[0-9]*/cpufreq; do
++    echo "$c: cur=$(cat $c/scaling_cur_freq) min=$(cat $c/scaling_min_freq) max=$(cat $c/scaling_max_freq) avail=$(cat $c/scaling_available_frequencies)"
++  done
++  echo "=== thermal";     for z in /sys/class/thermal/thermal_zone*; do echo "$z $(cat $z/type) $(cat $z/temp)"; done
++  ls -lZ /sys/class/thermal/thermal_zone0/
++  echo "=== modules";     cat /proc/modules
++  echo "=== interrupts";  cat /proc/interrupts
++  echo "=== sdio/mmc";    ls -l /sys/bus/sdio/devices /sys/bus/mmc/devices
++  echo "=== net";         for n in /sys/class/net/*; do echo "$n $(cat $n/address) $(cat $n/operstate)"; done
++  echo "=== getprop";     getprop
++}
++
++snap() {
++  dmesg > $D/dmesg.txt.new 2>&1 && mv $D/dmesg.txt.new $D/dmesg.txt
++  logcat -d -b all -v threadtime > $D/logcat.txt.new 2>&1 && mv $D/logcat.txt.new $D/logcat.txt
++  info > $D/info.txt.new 2>&1 && mv $D/info.txt.new $D/info.txt
++  sync
++  # память пользователя разблокирована (с FBE до разблокировки имена зашифрованы и папки Download нет)
++  echo "snap uptime $(cat /proc/uptime)" >&2
++  if [ -d /data/media/0/Download ]; then
++    mkdir -p $OUT
++    for b in $B/boot_[0-9]*; do
++      mkdir -p $OUT/${b##*/}
++      cp $b/*.txt $OUT/${b##*/}/
++    done
++    prune $OUT
++    echo "T95 log: una cartella per avvio (boot_NNN, la piu' alta = ultimo avvio). dmesg = kernel, logcat = Android, info = sistema." > $OUT/LEGGIMI.txt
++    chmod -R ug+rwX,o-rwx $OUT
++  fi
++}
++
++# первые 3 минуты каждые 15 с, до 30 минут каждые 2 минуты, дальше каждые 10 минут
++t=0
++while true; do
++  snap
++  if [ $t -lt 180 ]; then s=15; elif [ $t -lt 1800 ]; then s=120; else s=600; fi
++  sleep $s; t=$(( t + s ))
++done
+--- a/device/softwinner/apollo/apollo_t95.mk	2026-10-18 11:15:25.703237187 +0200
++++ b/device/softwinner/apollo/apollo_t95.mk	2026-10-18 11:15:25.703956426 +0200
+@@ -4,7 +4,8 @@
+ PRODUCT_BRAND := Allwinner
+ PRODUCT_NAME := apollo_t95
+ PRODUCT_DEVICE := apollo-t95
+-PRODUCT_BOARD := t95
++# T95: плата longan (configs/<плата>): t95 = AXP806 + eMMC; T95_BOARD=t95-axp313 = AXP313A (eMMC или NAND)
++PRODUCT_BOARD := $(if $(T95_BOARD),$(T95_BOARD),t95)
+ PRODUCT_MODEL := T95_h616
+ PRODUCT_MANUFACTURER := Allwinner
+ 
+@@ -28,14 +29,29 @@
+     $(T95_DIR)/fd655.sh:$(TARGET_COPY_OUT_VENDOR)/bin/fd655.sh \
+     $(T95_DIR)/fd655.rc:$(TARGET_COPY_OUT_VENDOR)/etc/init/fd655.rc
+ PRODUCT_PACKAGES += NetworkStackOverlayT95
++# T95-AXP313: сон s2idle (см. t95/axp313-s2idle.rc); приставка AXP806 остаётся на deep (работает)
++ifeq ($(PRODUCT_BOARD),t95-axp313)
++PRODUCT_COPY_FILES += $(T95_DIR)/axp313-s2idle.rc:$(TARGET_COPY_OUT_SYSTEM_EXT)/etc/init/axp313-s2idle.rc
++endif
+ PRODUCT_PRODUCT_PROPERTIES += bluetooth.device.default_name=T95
+ # T95: adb anche in rete (porta 5555) QUANDO l utente attiva "Debug USB" (spento di default, autorizzazione a schermo:
+ # ro.adb.secure=1). Il T95 non ha USB in modalita dispositivo (USB0 = host): senza questo adb non e raggiungibile.
+ PRODUCT_SYSTEM_PROPERTIES += service.adb.tcp.port=5555
++# T95_LOGGER=1 (только тестовые сборки): лог ядра+logcat+info в файлы /sdcard/T95_LOG (apollo-t95/t95log)
++ifeq ($(T95_LOGGER),1)
++PRODUCT_COPY_FILES += \
++    $(PRODUCT_PLATFORM_PATH)/apollo-t95/t95log/t95log.sh:$(TARGET_COPY_OUT_SYSTEM_EXT)/bin/t95log.sh \
++    $(PRODUCT_PLATFORM_PATH)/apollo-t95/t95log/t95log.rc:$(TARGET_COPY_OUT_SYSTEM_EXT)/etc/init/t95log.rc
++# logd: ядро в буфер "kernel" и буферы побольше
++PRODUCT_SYSTEM_PROPERTIES += ro.logd.kernel=true ro.logd.size=4M
++endif
+ 
+ # app (apollo-t95/apps, APK originali firmati dagli autori): FLauncher home al posto di TvLauncher,
+ # file manager Material Files, Cromite al posto del WebView AOSP 91
+ PRODUCT_PACKAGES += FLauncher MaterialFiles CromiteWebView SmartTube VLC Downloader FDroid
++# системное окно выбора файлов/папок (ACTION_OPEN_DOCUMENT_TREE): без него Alpha Backup вылетает, а Material Files не добавляет SD
++# (mainline.mk требует GoogleDocumentsUIPrebuilt, которого в исходниках нет)
++PRODUCT_PACKAGES += DocumentsUI
+ # provider WebView: Cromite + Google WebView (se installato dall'utente)
+ PRODUCT_PACKAGE_OVERLAYS += $(PRODUCT_PLATFORM_PATH)/apollo-t95/overlay
+ 
+--- a/hardware/aw/wireless/hwinfo/libhwinfo.c	2026-10-18 11:15:25.719137802 +0200
++++ b/hardware/aw/wireless/hwinfo/libhwinfo.c	2026-10-18 11:15:25.719277993 +0200
+@@ -153,6 +153,7 @@
+     {0x0, 0x0bdaf179, "rtl8188fu",     "8188fu",     "8188fu",     "realtek",  0},
+     {0x1, 0x02d0a9a6, "ap6212",        "bcmdhd",     "bcmdhd",     "broadcom", 1},
+     {0x1, 0x02d04330, "ap6330",        "bcmdhd",     "bcmdhd",     "broadcom", 1},
++    {0x1, 0x02d04334, "ap6334",        "bcmdhd",     "bcmdhd",     "broadcom", 1}, /* T95 AXP313A: LG642 = клон AP6334 (BCM43342) */
+     {0x1, 0x02d04356, "ap6356s",       "bcmdhd",     "bcmdhd",     "broadcom", 1},
+     {0x1, 0x02d0a9bf, "ap6255",        "bcmdhd",     "bcmdhd",     "broadcom", 1},
+     {0x1, 0x00202281, "xr819",         "xr819",      "xr819",      "xradio",   0},
+--- a/hardware/aw/wireless/partner/ampak/firmware/ap6334/config.txt	2026-10-18 11:15:25.721953871 +0200
++++ b/hardware/aw/wireless/partner/ampak/firmware/ap6334/config.txt	2026-10-18 11:15:25.722557637 +0200
+@@ -1,7 +1,9 @@
+ #Note default open channel 1-13
+ #For most country, channel 1-13
+-ccode=CN
+-regrev=0
++#T95 AXP313A: как в стоковой nvram AP6334 (XZ/11 = весь мир, 5 ГГц 36-165);
++#CN/0 ограничивал 5 ГГц каналами 149-165 (европейские/российские сети на 36-48 не видны)
++ccode=XZ
++regrev=11
+ 
+ #For North America, channel 1-11
+ #ccode=US
+--- a/vendor/aw/homlet/package/TvdFileManager/Android.mk	2026-10-18 11:15:25.708838360 +0200
++++ b/vendor/aw/homlet/package/TvdFileManager/Android.mk	2026-10-18 11:15:25.709470971 +0200
+@@ -34,6 +34,7 @@
+ LOCAL_PRIVATE_PLATFORM_APIS := true
+ LOCAL_PROGUARD_ENABLED := disabled
+ 
+-LOCAL_OVERRIDES_PACKAGES := DocumentsUI
++# T95: override убран (TvdFileManager в GLOBAL_REMOVED_PACKAGES, но override всё равно исключал DocumentsUI)
++# LOCAL_OVERRIDES_PACKAGES := DocumentsUI
+ 
+ include $(BUILD_PACKAGE)

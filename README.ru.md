@@ -29,6 +29,9 @@ Orange Pi Zero 3 (`H618-Android12-Src`, BSP Allwinner) и портированн
   (иначе 60 fps и ~95% одного ядра постоянно)
 - Приложения: **F-Droid**, **SmartTube**, **VLC**, **Material Files**, **Downloader** (AFTVnews),
   WebView **Cromite 153** вместо старого AOSP WebView 91
+- С b19: системное окно выбора файлов/папок (**DocumentsUI**) — нужно приложениям резервного копирования
+  (например Alpha Backup) и для добавления SD-карты в Material Files; приложения видят температуру процессора;
+  звук при загрузке на 24 дБ тише
 - ИК-пульт (включение из сна тоже), передний дисплей FD655 (часы + значки LAN/WiFi/USB),
   имя устройства `T95_h616`
 - **Выключение с пульта**: долгое нажатие power → меню «Выключить / Перезагрузить» (управляется стрелками
@@ -59,6 +62,12 @@ Ethernet AC200 (100 Мбит).
 выключение/включение пультом, дисплей FD655, обе USB.
 **Не проверено:** звук через HDMI, CEC.
 
+Вторая плата, **H616-T95MAX-AXP313A-V2.0** (PMIC **AXP313A**, Wi-Fi/BT **BCM43342**, 2 ГБ), имеет свою папку
+`configs/t95-axp313` и **тестовые сборки** (pre-release `axp313-*`), их проверяет пользователь 4PDA на версии с
+**eMMC**. Версия этой платы с **NAND** пока не прошивается (драйвер NAND в U-Boot из BSP не запускает микросхему).
+Не прошивайте образ для одного PMIC на другую плату: в имени файла указано, для какой он платы
+(`t95axp806` / `t95axp313`).
+
 > [!WARNING]
 > T95 бывают с разной памятью, PMIC и Wi-Fi. На другой ревизии платы прошивка может не загрузиться —
 > см. [Как вернуться](#как-вернуться-на-сток-или-другую-прошивку).
@@ -69,6 +78,8 @@ Ethernet AC200 (100 Мбит).
 2. Нужен кабель USB A-A (папа-папа) и PhoenixSuit (Windows) или OpenixSuit (Linux).
 3. Скачайте `update.opi-t95-a12-b18-user.img.xz` из [Releases](../../releases) и распакуйте
    (7-Zip в Windows, `xz -d` в Linux), затем выберите `update.opi-t95-a12-b18-user.img`, режим полной прошивки (Full Erase).
+   b19 (pre-release, пока идёт проверка): `update.opi-t95axp806-a12-b19-user.img.xz` или
+   `update.opi-t95axp806-a12-b19-magisk-user.img.xz` с root (Magisk).
 4. На выключенной приставке зажмите кнопку reset (в отверстии AV), подключите USB к ПК, отпустите кнопку
    через 3–5 с — начнётся прошивка.
 5. Первая загрузка ~1–2 минуты.
@@ -105,7 +116,8 @@ USB) находится в ПЗУ процессора, стереть его н
   обновления/отключите.
 - FLauncher пересобран и подписан моим ключом: обновления от автора поверх не встанут, он обновляется
   вместе с прошивкой.
-- Сборка user: нет root, нет shell на UART.
+- Сборка user: нет root, нет shell на UART. С b19 есть и вариант **Magisk** (`-magisk`): та же сборка
+  с `boot.img`, пропатченным Magisk; для управления root установите приложение Magisk с его страницы на GitHub.
 
 ## Сборка из исходников
 
@@ -131,11 +143,16 @@ USB) находится в ПЗУ процессора, стереть его н
 | `patches/06-flauncher-v2025.07.001-t95.patch` | [FLauncher](https://github.com/osrosal/flauncher) (тег v2025.07.001): анимация подсветки выключена по умолчанию. Сборка: Flutter 3.24.5, JDK 17, `flutter build apk --release --split-per-abi --target-platform android-arm64` |
 | `patches/08-poweroff-menu-t95.patch` | выключение и меню: долгое нажатие power = меню Выключить/Перезагрузить (overlay `apollo-t95` `config.xml`), SystemUI `GlobalActionsDialogLite`: кнопки выбираются стрелками пульта (фокус, белая рамка), FD655 гаснет при выключении (`fd655.rc` on shutdown), SELinux: audio.routing, dontaudit installd |
 | `patches/09-rtc-axp806-offctl-t95.patch` | исправление сброса RTC (b16): U-Boot (`pmu_axp806.c`) и ядро (`axp2101.c`) сбрасывают бит 4 регистра AXP806 0x32 (OFF_CTL), который включает бинарный sboot. С ним каждый сброс SoC обнулял весь домен RTC. См. [Выключение](#выключение) |
-| `patches/07-kernel-5.4.302/` | ядро 5.4.125 → 5.4.302 (с b18): скрипт merge ACK, разрешённые конфликты, 0001–0003 (0003 — исправление зависания после сна). См. [Ядро](#ядро) |
+| `patches/10-b19-t95-axp313.patch` | b19: DocumentsUI (его убирал override `TvdFileManager`), SELinux: приложения читают температуру процессора (`sysfs_thermal`, `sysfs_temp`). Для платы AXP313A: `PRODUCT_BOARD` из `T95_BOARD`, лёгкий сон s2idle (`axp313-s2idle.rc`, `/sys/power/mem_sleep` → `sysfs_power`), BCM43342 в `libhwinfo.c`, `config.txt` AP6334 с ccode XZ/11. Только для тестовых сборок (`T95_LOGGER=1`): сборщик логов `t95log` (dmesg/logcat в `/sdcard/T95_LOG`) |
+| `patches/07-kernel-5.4.302/` | ядро 5.4.125 → 5.4.302 (с b18): скрипт merge ACK, разрешённые конфликты, 0001–0003 (0003 — исправление зависания после сна), 0004 — BCM43342 в bcmdhd (только плата AXP313A). См. [Ядро](#ядро) |
+| `longan/device/config/chips/h618/configs/t95-axp313/` | папка платы H616-T95MAX-AXP313A-V2.0: AXP313A (как у Zero 3), DRAM из стоковой прошивки A29, тактовая 32 кГц для AP6334, выводы NAND; создаётся двумя инструментами `t95_axp313_*` |
 | `tools/bl31_t95_patch.py` | создаёт `bin/bl31_t95.bin` из `bl31.bin`: пропуск «hardware check» только для H618 (0x1F4C). С `--fakeoff` — ещё старый обход выключения из b13–b15 (PSCI SYSTEM_OFF, 0x1CF0..0x1D00), с b16 не нужен |
 | `tools/t95_board_dts.py` | генератор `board.dts` t95 из p2 (результат уже в `configs/t95`) |
 | `tools/t95_sys_config.py` | генератор `sys_config.fex` t95 из p2 + стокового `sys_config.fex` T95 |
 | `tools/gen_app_keys.sh` | генерация своих ключей приложений (platform/media/shared/networkstack/releasekey) |
+| `tools/t95_bootsound.py` | громкость звука загрузки в `bootanimation.zip` (b19: `-24` дБ) |
+| `tools/magisk-boot.sh` | вариант с root: патчит Magisk-ом `boot.img` из signed target files, переподписывает vbmeta своим ключом AVB; затем `pack -v` |
+| `tools/t95_axp313_board_dts.py`, `tools/t95_axp313_sys_config.py` | создают `board.dts` и `sys_config.fex` для `configs/t95-axp313` из p2 (+ стоковый `sys_config.fex` этой платы) |
 
 ### Порядок
 
@@ -149,7 +166,9 @@ cp -a device/softwinner/apollo/apollo-p2 device/softwinner/apollo/apollo-t95
 cp    device/softwinner/apollo/apollo_p2.mk device/softwinner/apollo/apollo_t95.mk
 bash ../t95-h616-android12/patches/07-kernel-5.4.302/merge-ack-5.4.302.sh longan/kernel/linux-5.4 ~/k302   # ядро 5.4.302
 rsync -a --delete --exclude=.git ~/k302/linux-5.4/ longan/kernel/linux-5.4/
-for p in 03a 03b 04 05 08 09; do git apply -p1 ../t95-h616-android12/patches/$p-*.patch; done   # или patch -p1 < ...
+for p in 03a 03b 04 05 08 09 10; do git apply -p1 ../t95-h616-android12/patches/$p-*.patch; done   # или patch -p1 < ...
+B=device/softwinner/apollo/common/media/bootanimation/bootanimation.zip
+python3 ../t95-h616-android12/tools/t95_bootsound.py $B $B.new -24 && mv $B.new $B   # звук загрузки -24 дБ
 python3 ../t95-h616-android12/tools/bl31_t95_patch.py longan/device/config/chips/h618/bin/bl31.bin \
         longan/device/config/chips/h618/bin/bl31_t95.bin
 ```
@@ -176,6 +195,14 @@ source build/envsetup.sh && lunch apollo_t95-user && make -j10 && pack4dist -v
 
 > [!NOTE]
 > Не пускайте вывод `./build.sh` через пайп (`| grep`, `| head`): сборка зависает.
+
+Вариант с root (после сборки выше): `bash ../t95-h616-android12/tools/magisk-boot.sh Magisk-v30.7.apk && pack -v`.
+
+Плата AXP313A: дополнительно примените к ядру `patches/07-kernel-5.4.302/0004-*.patch`, скопируйте прошивки
+Wi-Fi/BT этой платы из её стокового `/vendor/etc/firmware` (`fw_bcm43342_ag*.bin`, `nvram_ap6334.txt`,
+`bcm43342a1.hcd`; не включены, лицензия Broadcom) в `hardware/aw/wireless/partner/ampak/firmware/ap6334/`,
+создайте `bin/bl31_t95-axp313.bin` через `tools/bl31_t95_patch.py` (как для t95), затем собирайте с
+`-b t95-axp313` и `export T95_BOARD=t95-axp313` перед `lunch`. Образ: `longan/out/h618_android12_t95-axp313_uart0_secure_v0.img`.
 
 ### Ядро
 
@@ -248,7 +275,8 @@ BL31 сразу вызывает box standby (функция 0x1B2C с сохр�
 
 ## Другие ревизии платы
 
-T95 бывают с другим PMIC (например AXP313A/AXP1530), памятью и Wi-Fi. Ревизия описывается своей папкой платы,
+T95 бывают с другим PMIC (например AXP313A/AXP1530), памятью и Wi-Fi. У платы AXP313A теперь есть своя папка
+`configs/t95-axp313` (см. [Проверено на](#проверено-на)). Ревизия описывается своей папкой платы,
 как у Orange Pi и Radxa: `longan/device/config/chips/h618/configs/<плата>/` с `sys_config.fex` (DRAM, напряжения PMIC, GPIO),
 `linux-5.4/board.dts` (DT ядра) и `uboot-board.dts`. Патчи Android остаются общими. Папка Zero 3 `p2` уже
 описывает AXP1530/AXP313A — хорошая отправная точка для таких боксов.
@@ -264,8 +292,8 @@ T95 бывают с другим PMIC (например AXP313A/AXP1530), пам
 
 ## Лицензии
 
-- Папка платы `longan/device/config/chips/h618/configs/t95/` сделана из конфигурации BSP Orange Pi /
-  Allwinner (`configs/p2`) и остаётся под лицензией этих файлов.
+- Папки плат `longan/device/config/chips/h618/configs/t95/` и `t95-axp313/` сделаны из конфигурации BSP Orange Pi /
+  Allwinner (`configs/p2`) и остаются под лицензией этих файлов.
 - Патчи к AOSP, BSP Allwinner и device tree — под лицензией изменяемых файлов (в основном Apache-2.0;
   ядро и файлы в `patches/07-kernel-5.4.302/resolved/` — GPL-2.0).
 - `patches/06-flauncher-v2025.07.001-t95.patch` — изменение FLauncher, GPL-3.0.
