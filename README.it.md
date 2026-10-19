@@ -26,13 +26,20 @@ pubblici.
   i binari chiusi di Allwinner (GPU, video, Wi-Fi) non si possono aggiornare.
 - Tutte le app di sistema e il secure boot (toc0/toc1/vbmeta) sono firmati con **le mie chiavi**, non con
   le chiavi pubbliche dell'SDK Allwinner che chiunque può usare
-- Launcher **FLauncher** (fork osrosal 2025.07.001), con l'animazione di evidenziazione delle schede spenta
-  di default. Se è accesa, il launcher ridisegna a 60 fps e tiene un core al ~95%.
+- Launcher **Arc Launcher** 1.0.10 (dalla b21; fork GPL di LTvLauncher/FLauncher), ricompilato senza
+  auto-aggiornamento e con sfondo scuro di default: 0% di CPU a riposo e il focus del telecomando non si perde se un
+  mouse Bluetooth si collega durante l'avvio. Fino alla b19 il launcher era **FLauncher** (fork osrosal 2025.07.001)
+  con l'animazione di evidenziazione delle schede spenta (se accesa ridisegna a 60 fps e tiene un core al ~95%).
+  Arc per ora è solo in inglese.
 - App: **F-Droid**, **SmartTube**, **VLC**, **Material Files**, **Downloader** (AFTVnews) e
   **Cromite 153** come WebView (al posto del vecchio WebView AOSP 91)
 - Dalla b19: il selettore di file/cartelle di sistema (**DocumentsUI**), che serve alle app di backup come Alpha
   Backup e per aggiungere una scheda SD in Material Files; le app leggono la temperatura della CPU; la musica
   di avvio è 24 dB più bassa
+- Dalla b21: animazioni di finestre/transizioni a 0,5x di default (a 1x Mali/HWC mostra fotogrammi spezzati
+  all'apertura/chiusura delle app), sfondo di sistema scuro neutro al posto del logo Orange Pi, **VLC da F-Droid**
+  (ora si aggiorna da F-Droid), privacy Bluetooth LE solo sui controller che la supportano (sui chip BT 4.0 mouse e
+  telecomandi BLE si ricollegano da soli dopo il riavvio)
 - Telecomando IR (accende anche il box dalla sospensione), display frontale FD655 (orologio e icone
   LAN/Wi-Fi/USB), nome dispositivo `T95_h616`
 - **Spegnimento dal telecomando**: la pressione lunga di power apre il menu *Spegni / Riavvia*, che si
@@ -79,10 +86,9 @@ scheda è (`t95axp806` / `t95axp313`).
 
 1. **Salva il firmware attuale**, se ce l'hai, oppure trova quello originale della tua revisione.
 2. Servono un cavo USB A-A (maschio-maschio) e PhoenixSuit (Windows) o OpenixSuit (Linux).
-3. Scarica `update.opi-t95-a12-b18-user.img.xz` dalle [Releases](../../releases) e decomprimilo
-   (7-Zip su Windows, `xz -d` su Linux), poi seleziona `update.opi-t95-a12-b18-user.img` e scegli il flash completo (Full Erase).
-   b19 (pre-release finché è in prova): `update.opi-t95axp806-a12-b19-user.img.xz`, oppure
-   `update.opi-t95axp806-a12-b19-magisk-user.img.xz` con root (Magisk).
+3. Scarica `update.opi-t95axp806-a12-b21-user.img.xz` dalle [Releases](../../releases) (oppure
+   `update.opi-t95axp806-a12-b21-magisk-user.img.xz` con root) e decomprimilo (7-Zip su Windows, `xz -d` su Linux),
+   poi seleziona il `.img` e scegli il flash completo (Full Erase).
 4. A box spento tieni premuto il tasto reset (dentro il jack AV), collega l'USB al PC e rilascia il tasto
    dopo 3–5 s: il flash parte.
 5. Il primo avvio richiede circa 1–2 minuti.
@@ -121,8 +127,10 @@ sempre recuperare.
 - Al primo avvio il Bluetooth può partire con ~5 s di ritardo; si riprende da solo.
 - Downloader (AFTVnews) è un'app gratuita a codice chiuso con pubblicità (AdMob/Meta). Se non la vuoi,
   disinstalla gli aggiornamenti o disattivala.
-- FLauncher è ricompilato e firmato con la mia chiave, quindi gli aggiornamenti del suo autore non si
+- Arc Launcher è ricompilato e firmato con la mia chiave, quindi gli aggiornamenti del suo autore non si
   installano sopra. Si aggiorna insieme al firmware.
+- Nella b21 VLC è passato dall'APK VideoLAN alla build F-Droid (firma diversa): se avevi aggiornato VLC sulla b20 o
+  prima, l'aggiornamento in `/data` sparisce dopo il flash della b21.
 - È una build user: niente root e niente shell sulla UART. Dalla b19 c'è anche una variante **Magisk**
   (`-magisk`): la stessa build con il `boot.img` patchato da Magisk; per gestire il root installa l'app Magisk
   dalla sua pagina GitHub.
@@ -152,6 +160,8 @@ Nei sorgenti la scheda Zero 3 si chiama **p2** (prodotto `apollo_p2`). Le patch 
 | `patches/08-poweroff-menu-t95.patch` | spegnimento e menu: pressione lunga di power = menu Spegni/Riavvia (overlay `apollo-t95` `config.xml`); pulsanti di SystemUI `GlobalActionsDialogLite` selezionabili con le frecce del telecomando (focus, bordo bianco); FD655 spento allo spegnimento (`fd655.rc` on shutdown); SELinux: audio.routing, dontaudit installd |
 | `patches/09-rtc-axp806-offctl-t95.patch` | correzione dell'azzeramento dell'RTC (b16): U-Boot (`pmu_axp806.c`) e il kernel (`axp2101.c`) spengono il bit 4 del registro 0x32 (OFF_CTL) dell'AXP806, che lo sboot binario accende. Con quel bit acceso ogni reset del SoC azzerava tutto il dominio RTC. Vedi [Spegnimento](#spegnimento) |
 | `patches/10-b19-t95-axp313.patch` | b19: DocumentsUI (lo toglieva l'override di `TvdFileManager`), SELinux: le app leggono la temperatura della CPU (`sysfs_thermal`, `sysfs_temp`). Per la scheda AXP313A: `PRODUCT_BOARD` da `T95_BOARD`, sospensione leggera s2idle (`axp313-s2idle.rc`, `/sys/power/mem_sleep` → `sysfs_power`), BCM43342 in `libhwinfo.c`, `config.txt` AP6334 con ccode XZ/11. Solo build di prova (`T95_LOGGER=1`): raccoglitore di log `t95log` (dmesg/logcat in `/sdcard/T95_LOG`) |
+| `patches/11-b21-t95.patch` | b20/b21: animazioni 0,5x di default (overlay SettingsProvider `defaults.xml`), privacy locale Bluetooth LE solo se il controller ha la LL privacy (`btif_dm.cc`), Arc Launcher al posto di FLauncher (`apps/Android.mk`, `apollo_t95.mk`), VLC da F-Droid. Lo sfondo lo crea `tools/t95_wallpaper.py` |
+| `patches/12-arclauncher-1.0.10-t95.patch` | [Arc Launcher](https://github.com/meddouribadis/arclauncher) (tag 1.0.10): sfondo scuro di default. Build: Flutter 3.41.9, `flutter build apk --release --flavor play --split-per-abi --target-platform android-arm64` (il flavor `play` non ha l'auto-aggiornamento) |
 | `patches/07-kernel-5.4.302/` | kernel 5.4.125 → 5.4.302 (dalla b18): script di merge ACK, conflitti risolti, 0001–0003 (0003 = correzione del blocco dopo la sospensione), 0004 = BCM43342 nel bcmdhd (solo scheda AXP313A). Vedi [Kernel](#kernel) |
 | `longan/device/config/chips/h618/configs/t95-axp313/` | cartella della scheda H616-T95MAX-AXP313A-V2.0: AXP313A (come lo Zero 3), DRAM dal firmware stock A29, clock 32 kHz per l'AP6334, pin NAND; generata dai due strumenti `t95_axp313_*` |
 | `tools/bl31_t95_patch.py` | crea `bin/bl31_t95.bin` da `bl31.bin`: salta il "hardware check" che accetta solo H618 (0x1F4C). Con `--fakeoff` aggiunge anche il vecchio aggiramento dello spegnimento delle b13–b15 (PSCI SYSTEM_OFF, 0x1CF0..0x1D00), non più necessario dalla b16 |
@@ -159,6 +169,7 @@ Nei sorgenti la scheda Zero 3 si chiama **p2** (prodotto `apollo_p2`). Le patch 
 | `tools/t95_sys_config.py` | genera il `sys_config.fex` t95 da quello p2 + il `sys_config.fex` del T95 originale |
 | `tools/gen_app_keys.sh` | genera le tue chiavi delle app (platform/media/shared/networkstack/releasekey) |
 | `tools/t95_bootsound.py` | regola il volume della musica di avvio in `bootanimation.zip` (b19: `-24` dB) |
+| `tools/t95_wallpaper.py` | crea lo sfondo di sistema di default (gradiente scuro, b20+) nell'overlay `apollo-t95` (serve Pillow) |
 | `tools/magisk-boot.sh` | variante root: patcha con Magisk il `boot.img` dei signed target files e rifirma vbmeta con la tua chiave AVB; poi `pack -v` |
 | `tools/t95_axp313_board_dts.py`, `tools/t95_axp313_sys_config.py` | generano `board.dts` e `sys_config.fex` di `configs/t95-axp313` da p2 (+ il `sys_config.fex` stock di quella scheda) |
 
@@ -176,17 +187,18 @@ cp -a device/softwinner/apollo/apollo-p2 device/softwinner/apollo/apollo-t95
 cp    device/softwinner/apollo/apollo_p2.mk device/softwinner/apollo/apollo_t95.mk
 bash ../t95-h616-android12/patches/07-kernel-5.4.302/merge-ack-5.4.302.sh longan/kernel/linux-5.4 ~/k302   # kernel 5.4.302
 rsync -a --delete --exclude=.git ~/k302/linux-5.4/ longan/kernel/linux-5.4/
-for p in 03a 03b 04 05 08 09 10; do git apply -p1 ../t95-h616-android12/patches/$p-*.patch; done   # oppure patch -p1 < ...
+for p in 03a 03b 04 05 08 09 10 11; do git apply -p1 ../t95-h616-android12/patches/$p-*.patch; done   # oppure patch -p1 < ...
 B=device/softwinner/apollo/common/media/bootanimation/bootanimation.zip
 python3 ../t95-h616-android12/tools/t95_bootsound.py $B $B.new -24 && mv $B.new $B   # musica di avvio -24 dB
+python3 ../t95-h616-android12/tools/t95_wallpaper.py device/softwinner/apollo/apollo-t95/overlay/frameworks/base/core/res/res
 python3 ../t95-h616-android12/tools/bl31_t95_patch.py longan/device/config/chips/h618/bin/bl31.bin \
         longan/device/config/chips/h618/bin/bl31_t95.bin
 ```
 
 Gli APK delle app vanno in `device/softwinner/apollo/apollo-t95/apps/<Nome>/`. Estrai le librerie native
 di ogni APK in `apps/<Nome>/lib/arm64/`; vedi `apps/Android.mk`, che riporta anche lo SHA-256 di ogni APK:
-FLauncher (compilato con la patch 06), MaterialFiles 1.7.5 (F-Droid), CromiteWebView 153.0.8010.37 (arm64
-SystemWebView), SmartTube 32.56 stable, VLC 3.7.1 arm64, Downloader 2.0.4 (+ `split_config.*`),
+ArcLauncher (compilato con la patch 12; fino alla b19 FLauncher con la patch 06), MaterialFiles 1.7.5 (F-Droid),
+CromiteWebView 153.0.8010.37 (arm64 SystemWebView), SmartTube 32.56 stable, VLC 3.7.2 arm64 (build F-Droid), Downloader 2.0.4 (+ `split_config.*`),
 F-Droid 2.0.1.
 
 Chiavi: metti le tue `toc_keys` in `vendor/security/toc_keys` (secure boot, vbmeta) e genera le tue chiavi
@@ -316,12 +328,13 @@ confermato che la build si avvia.
 - Le patch ad AOSP, al BSP Allwinner e ai device tree seguono la licenza dei file che modificano
   (soprattutto Apache-2.0; il kernel e i file in `patches/07-kernel-5.4.302/resolved/` sono
   GPL-2.0).
-- `patches/06-flauncher-v2025.07.001-t95.patch` è una modifica a FLauncher, che è GPL-3.0.
+- `patches/06-flauncher-v2025.07.001-t95.patch` è una modifica a FLauncher e `patches/12-arclauncher-1.0.10-t95.patch`
+  una modifica ad Arc Launcher, entrambi GPL-3.0.
 - Gli strumenti in `tools/` e la documentazione sono sotto Apache-2.0 (vedi [LICENSE](LICENSE)).
-- Le app preinstallate nell'immagine non sono modificate (tranne FLauncher) e mantengono licenze e firme
+- Le app preinstallate nell'immagine non sono modificate (tranne FLauncher / Arc Launcher) e mantengono licenze e firme
   dei loro autori.
 
 ## Ringraziamenti
 
-Orange Pi (sorgenti H618 Android 12), BSP Allwinner, osrosal (FLauncher) e gli autori di SmartTube, VLC,
+Orange Pi (sorgenti H618 Android 12), BSP Allwinner, osrosal (FLauncher), meddouribadis (Arc Launcher) e gli autori di SmartTube, VLC,
 F-Droid, Material Files e Cromite.

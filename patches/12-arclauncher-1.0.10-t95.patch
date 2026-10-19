@@ -1,0 +1,13 @@
+diff --git a/lib/providers/wallpaper_service.dart b/lib/providers/wallpaper_service.dart
+index ffca3ec..5c47491 100644
+--- a/lib/providers/wallpaper_service.dart
++++ b/lib/providers/wallpaper_service.dart
+@@ -52,7 +52,7 @@ class WallpaperService extends ChangeNotifier {
+ 
+   FLauncherGradient get gradient => FLauncherGradients.all.firstWhere(
+     (gradient) => gradient.uuid == _settingsService.gradientUuid,
+-    orElse: () => FLauncherGradients.saintPetersburg,
++    orElse: () => FLauncherGradients.viciousStance,
+   );
+ 
+   WallpaperService(this._settingsService) : _wallpaper = null {

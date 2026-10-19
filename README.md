@@ -25,12 +25,18 @@ servers. Instead of cleaning it, I rebuilt Android 12 from scratch, starting fro
   release); the closed-source Allwinner vendor blobs (GPU, video, Wi-Fi) cannot be updated.
 - All system apps and secure boot (toc0/toc1/vbmeta) are signed with **my own keys**, not with the public
   Allwinner SDK keys that anyone can use
-- **FLauncher** launcher (osrosal fork 2025.07.001), with the card highlight animation off by default. With it
-  on, the launcher redraws at 60 fps and keeps one core at ~95%.
+- **Arc Launcher** 1.0.10 (since b21; a GPL fork of LTvLauncher/FLauncher), rebuilt without the self-updater and
+  with a dark default background. It uses 0% CPU when idle and keeps the remote focus when a Bluetooth mouse connects
+  during boot. Up to b19 the launcher was **FLauncher** (osrosal fork 2025.07.001) with the card highlight animation
+  off by default (with it on, it redraws at 60 fps and keeps one core at ~95%). Arc is in English only for now.
 - Apps: **F-Droid**, **SmartTube**, **VLC**, **Material Files**, **Downloader** (AFTVnews) and
   **Cromite 153** as WebView (replacing the old AOSP WebView 91)
 - Since b19: the system file/folder picker (**DocumentsUI**), needed by backup apps such as Alpha Backup and to
   add an SD card in Material Files; apps can read the CPU temperature; the boot sound is 24 dB quieter
+- Since b21: window/transition animations at 0.5x by default (at 1x the Mali/HWC shows torn frames when apps
+  open/close), a dark neutral system wallpaper instead of the Orange Pi logo, **VLC from F-Droid** (it now updates
+  from F-Droid), and Bluetooth LE privacy only on controllers that support it (BLE mice/remotes reconnect after a
+  reboot on BT 4.0 chips)
 - IR remote (it also wakes the box from sleep), FD655 front display (clock and LAN/Wi-Fi/USB icons),
   device name `T95_h616`
 - **Power off from the remote**: a long press on power opens a *Power off / Restart* menu, which you can
@@ -76,10 +82,9 @@ for (`t95axp806` / `t95axp313`).
 
 1. **Back up your current firmware** if you have it, or find the stock firmware for your revision.
 2. You need a USB A-A (male-male) cable and PhoenixSuit (Windows) or OpenixSuit (Linux).
-3. Download `update.opi-t95-a12-b18-user.img.xz` from [Releases](../../releases) and decompress it
-   (7-Zip on Windows, `xz -d` on Linux), then select `update.opi-t95-a12-b18-user.img` and choose a full flash (Full Erase).
-   b19 (pre-release while it is being tested): `update.opi-t95axp806-a12-b19-user.img.xz`, or
-   `update.opi-t95axp806-a12-b19-magisk-user.img.xz` with root (Magisk).
+3. Download `update.opi-t95axp806-a12-b21-user.img.xz` from [Releases](../../releases) (or
+   `update.opi-t95axp806-a12-b21-magisk-user.img.xz` with root) and decompress it (7-Zip on Windows, `xz -d` on Linux),
+   then select the `.img` and choose a full flash (Full Erase).
 4. With the box off, hold the reset button (inside the AV jack), connect USB to the PC, and release the
    button after 3–5 s. Flashing starts.
 5. The first boot takes about 1–2 minutes.
@@ -115,8 +120,10 @@ cannot be erased, so the box can always be recovered.
 - On first boot, Bluetooth may start ~5 s late; it recovers by itself.
 - Downloader (AFTVnews) is a free, closed-source app with ads (AdMob/Meta). Uninstall its updates or
   disable it if you don't want it.
-- FLauncher is rebuilt and signed with my key, so updates from its author won't install over it. It is
+- Arc Launcher is rebuilt and signed with my key, so updates from its author won't install over it. It is
   updated together with the firmware.
+- VLC changed from the VideoLAN APK to the F-Droid build in b21 (different signature): if you updated VLC on b20 or
+  older, the update in `/data` is dropped after flashing b21.
 - This is a user build: no root and no UART shell. Since b19 there is also a **Magisk** variant (`-magisk`):
   the same build with a Magisk-patched `boot.img`; install the Magisk app from its GitHub page to manage root.
 
@@ -145,6 +152,8 @@ and a new product **apollo_t95**. Build host: Ubuntu 22.04.
 | `patches/08-poweroff-menu-t95.patch` | power off and menu: long press on power opens Power off / Restart (`apollo-t95` overlay `config.xml`); SystemUI `GlobalActionsDialogLite` buttons selectable with the remote arrows (focus, white frame); FD655 turns off at shutdown (`fd655.rc` on shutdown); SELinux: audio.routing, dontaudit installd |
 | `patches/09-rtc-axp806-offctl-t95.patch` | fix for the RTC reset (b16): U-Boot (`pmu_axp806.c`) and the kernel (`axp2101.c`) clear bit 4 of AXP806 register 0x32 (OFF_CTL), which the binary sboot sets. With it set, every SoC reset cleared the whole RTC domain. See [Power off](#power-off) |
 | `patches/10-b19-t95-axp313.patch` | b19: DocumentsUI (the `TvdFileManager` override removed it), SELinux: apps read the CPU temperature (`sysfs_thermal`, `sysfs_temp`). For the AXP313A board: `PRODUCT_BOARD` from `T95_BOARD`, light sleep s2idle (`axp313-s2idle.rc`, `/sys/power/mem_sleep` → `sysfs_power`), BCM43342 in `libhwinfo.c`, AP6334 `config.txt` with ccode XZ/11. Test builds only (`T95_LOGGER=1`): log collector `t95log` (dmesg/logcat to `/sdcard/T95_LOG`) |
+| `patches/11-b21-t95.patch` | b20/b21: animations 0.5x by default (SettingsProvider overlay `defaults.xml`), Bluetooth LE local privacy only if the controller supports LL privacy (`btif_dm.cc`), Arc Launcher in place of FLauncher (`apps/Android.mk`, `apollo_t95.mk`), VLC from F-Droid. The wallpaper is made by `tools/t95_wallpaper.py` |
+| `patches/12-arclauncher-1.0.10-t95.patch` | [Arc Launcher](https://github.com/meddouribadis/arclauncher) (tag 1.0.10): dark default background. Build: Flutter 3.41.9, `flutter build apk --release --flavor play --split-per-abi --target-platform android-arm64` (the `play` flavor has no self-updater) |
 | `patches/07-kernel-5.4.302/` | kernel 5.4.125 → 5.4.302 (since b18): ACK merge script, resolved conflicts, 0001–0003 (0003 = fix for the hang after sleep), 0004 = BCM43342 in bcmdhd (AXP313A board only). See [Kernel](#kernel) |
 | `longan/device/config/chips/h618/configs/t95-axp313/` | board folder for H616-T95MAX-AXP313A-V2.0: AXP313A (as on the Zero 3), DRAM from the stock A29 firmware, AP6334 32 kHz clock, NAND pins; generated by the two `t95_axp313_*` tools |
 | `tools/bl31_t95_patch.py` | creates `bin/bl31_t95.bin` from `bl31.bin`: skips the H618-only "hardware check" (0x1F4C). With `--fakeoff` it also adds the old power-off workaround of b13–b15 (PSCI SYSTEM_OFF, 0x1CF0..0x1D00), not needed since b16 |
@@ -152,6 +161,7 @@ and a new product **apollo_t95**. Build host: Ubuntu 22.04.
 | `tools/t95_sys_config.py` | generates the t95 `sys_config.fex` from p2 + the stock T95 `sys_config.fex` |
 | `tools/gen_app_keys.sh` | generates your own app keys (platform/media/shared/networkstack/releasekey) |
 | `tools/t95_bootsound.py` | sets the boot sound volume in `bootanimation.zip` (b19: `-24` dB) |
+| `tools/t95_wallpaper.py` | creates the default system wallpaper (dark gradient, b20+) in the `apollo-t95` overlay (needs Pillow) |
 | `tools/magisk-boot.sh` | root variant: patches `boot.img` of the signed target files with Magisk, re-signs vbmeta with your AVB key; then run `pack -v` |
 | `tools/t95_axp313_board_dts.py`, `tools/t95_axp313_sys_config.py` | generate `board.dts` and `sys_config.fex` of `configs/t95-axp313` from p2 (+ the stock `sys_config.fex` of that board) |
 
@@ -169,17 +179,18 @@ cp -a device/softwinner/apollo/apollo-p2 device/softwinner/apollo/apollo-t95
 cp    device/softwinner/apollo/apollo_p2.mk device/softwinner/apollo/apollo_t95.mk
 bash ../t95-h616-android12/patches/07-kernel-5.4.302/merge-ack-5.4.302.sh longan/kernel/linux-5.4 ~/k302   # kernel 5.4.302
 rsync -a --delete --exclude=.git ~/k302/linux-5.4/ longan/kernel/linux-5.4/
-for p in 03a 03b 04 05 08 09 10; do git apply -p1 ../t95-h616-android12/patches/$p-*.patch; done   # or patch -p1 < ...
+for p in 03a 03b 04 05 08 09 10 11; do git apply -p1 ../t95-h616-android12/patches/$p-*.patch; done   # or patch -p1 < ...
 B=device/softwinner/apollo/common/media/bootanimation/bootanimation.zip
 python3 ../t95-h616-android12/tools/t95_bootsound.py $B $B.new -24 && mv $B.new $B   # boot sound -24 dB
+python3 ../t95-h616-android12/tools/t95_wallpaper.py device/softwinner/apollo/apollo-t95/overlay/frameworks/base/core/res/res
 python3 ../t95-h616-android12/tools/bl31_t95_patch.py longan/device/config/chips/h618/bin/bl31.bin \
         longan/device/config/chips/h618/bin/bl31_t95.bin
 ```
 
 App APKs go in `device/softwinner/apollo/apollo-t95/apps/<Name>/`. Extract the native libraries from
 each APK into `apps/<Name>/lib/arm64/`; see `apps/Android.mk`, which also lists the SHA-256 of each APK:
-FLauncher (built with patch 06), MaterialFiles 1.7.5 (F-Droid), CromiteWebView 153.0.8010.37 (arm64
-SystemWebView), SmartTube 32.56 stable, VLC 3.7.1 arm64, Downloader 2.0.4 (+ `split_config.*`),
+ArcLauncher (built with patch 12; FLauncher with patch 06 up to b19), MaterialFiles 1.7.5 (F-Droid), CromiteWebView
+153.0.8010.37 (arm64 SystemWebView), SmartTube 32.56 stable, VLC 3.7.2 arm64 (F-Droid build), Downloader 2.0.4 (+ `split_config.*`),
 F-Droid 2.0.1.
 
 Keys: put your own `toc_keys` in `vendor/security/toc_keys` (secure boot, vbmeta) and generate your own
@@ -304,12 +315,13 @@ running this firmware. If you build your own image, generate your own keys.
 - Patches to AOSP, the Allwinner BSP and device trees follow the license of the files they modify
   (mostly Apache-2.0; the kernel and the files in `patches/07-kernel-5.4.302/resolved/` are
   GPL-2.0).
-- `patches/06-flauncher-v2025.07.001-t95.patch` is a change to FLauncher, which is GPL-3.0.
+- `patches/06-flauncher-v2025.07.001-t95.patch` is a change to FLauncher and `patches/12-arclauncher-1.0.10-t95.patch`
+  a change to Arc Launcher, both GPL-3.0.
 - The tools in `tools/` and the documentation are under Apache-2.0 (see [LICENSE](LICENSE)).
-- The apps preinstalled in the image are unmodified (except FLauncher) and keep their authors' licenses
+- The apps preinstalled in the image are unmodified (except FLauncher / Arc Launcher) and keep their authors' licenses
   and signatures.
 
 ## Credits
 
-Orange Pi (H618 Android 12 sources), Allwinner BSP, osrosal (FLauncher), and the authors of SmartTube,
+Orange Pi (H618 Android 12 sources), Allwinner BSP, osrosal (FLauncher), meddouribadis (Arc Launcher), and the authors of SmartTube,
 VLC, F-Droid, Material Files and Cromite.

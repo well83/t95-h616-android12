@@ -25,13 +25,19 @@ Orange Pi Zero 3 (`H618-Android12-Src`, BSP Allwinner) и портированн
   бинарники Allwinner (GPU, видео, Wi-Fi) обновить нельзя
 - Все системные приложения и secure boot (toc0/toc1/vbmeta) подписаны **моими собственными ключами**
   (вместо публичных ключей SDK Allwinner, которыми может подписать кто угодно)
-- Лаунчер **FLauncher** (форк osrosal 2025.07.001), анимация подсветки карточек выключена по умолчанию
-  (иначе 60 fps и ~95% одного ядра постоянно)
+- Лаунчер **Arc Launcher** 1.0.10 (с b21; GPL-форк LTvLauncher/FLauncher), пересобран без самообновления и с тёмным
+  фоном по умолчанию: 0% CPU в покое, фокус пульта не теряется, если BT-мышь подключается во время загрузки. До b19
+  лаунчером был **FLauncher** (форк osrosal 2025.07.001) с выключенной анимацией подсветки карточек (иначе 60 fps и
+  ~95% одного ядра постоянно). Arc пока только на английском.
 - Приложения: **F-Droid**, **SmartTube**, **VLC**, **Material Files**, **Downloader** (AFTVnews),
   WebView **Cromite 153** вместо старого AOSP WebView 91
 - С b19: системное окно выбора файлов/папок (**DocumentsUI**) — нужно приложениям резервного копирования
   (например Alpha Backup) и для добавления SD-карты в Material Files; приложения видят температуру процессора;
   звук при загрузке на 24 дБ тише
+- С b21: анимации окон/переходов 0,5x по умолчанию (на 1x Mali/HWC даёт разорванные кадры при открытии/закрытии
+  приложений), тёмный нейтральный системный фон вместо логотипа Orange Pi, **VLC из F-Droid** (теперь обновляется
+  через F-Droid), Bluetooth LE privacy только на контроллерах, которые её поддерживают (на чипах BT 4.0 BLE-мыши и
+  пульты снова подключаются сами после перезагрузки)
 - ИК-пульт (включение из сна тоже), передний дисплей FD655 (часы + значки LAN/WiFi/USB),
   имя устройства `T95_h616`
 - **Выключение с пульта**: долгое нажатие power → меню «Выключить / Перезагрузить» (управляется стрелками
@@ -76,10 +82,9 @@ Ethernet AC200 (100 Мбит).
 
 1. **Сохраните свою текущую прошивку**, если она у вас есть (или найдите сток для своей ревизии).
 2. Нужен кабель USB A-A (папа-папа) и PhoenixSuit (Windows) или OpenixSuit (Linux).
-3. Скачайте `update.opi-t95-a12-b18-user.img.xz` из [Releases](../../releases) и распакуйте
-   (7-Zip в Windows, `xz -d` в Linux), затем выберите `update.opi-t95-a12-b18-user.img`, режим полной прошивки (Full Erase).
-   b19 (pre-release, пока идёт проверка): `update.opi-t95axp806-a12-b19-user.img.xz` или
-   `update.opi-t95axp806-a12-b19-magisk-user.img.xz` с root (Magisk).
+3. Скачайте `update.opi-t95axp806-a12-b21-user.img.xz` из [Releases](../../releases) (или
+   `update.opi-t95axp806-a12-b21-magisk-user.img.xz` с root) и распакуйте (7-Zip в Windows, `xz -d` в Linux), затем
+   выберите `.img`, режим полной прошивки (Full Erase).
 4. На выключенной приставке зажмите кнопку reset (в отверстии AV), подключите USB к ПК, отпустите кнопку
    через 3–5 с — начнётся прошивка.
 5. Первая загрузка ~1–2 минуты.
@@ -114,8 +119,10 @@ USB) находится в ПЗУ процессора, стереть его н
 - При первом запуске Bluetooth может стартовать на ~5 с позже (восстанавливается сам).
 - Downloader (AFTVnews) — бесплатное закрытое приложение с рекламой (AdMob/Meta); при желании удалите
   обновления/отключите.
-- FLauncher пересобран и подписан моим ключом: обновления от автора поверх не встанут, он обновляется
+- Arc Launcher пересобран и подписан моим ключом: обновления от автора поверх не встанут, он обновляется
   вместе с прошивкой.
+- В b21 VLC заменён с APK VideoLAN на сборку F-Droid (другая подпись): если Вы обновляли VLC на b20 или раньше,
+  это обновление в `/data` после прошивки b21 пропадёт.
 - Сборка user: нет root, нет shell на UART. С b19 есть и вариант **Magisk** (`-magisk`): та же сборка
   с `boot.img`, пропатченным Magisk; для управления root установите приложение Magisk с его страницы на GitHub.
 
@@ -144,6 +151,8 @@ USB) находится в ПЗУ процессора, стереть его н
 | `patches/08-poweroff-menu-t95.patch` | выключение и меню: долгое нажатие power = меню Выключить/Перезагрузить (overlay `apollo-t95` `config.xml`), SystemUI `GlobalActionsDialogLite`: кнопки выбираются стрелками пульта (фокус, белая рамка), FD655 гаснет при выключении (`fd655.rc` on shutdown), SELinux: audio.routing, dontaudit installd |
 | `patches/09-rtc-axp806-offctl-t95.patch` | исправление сброса RTC (b16): U-Boot (`pmu_axp806.c`) и ядро (`axp2101.c`) сбрасывают бит 4 регистра AXP806 0x32 (OFF_CTL), который включает бинарный sboot. С ним каждый сброс SoC обнулял весь домен RTC. См. [Выключение](#выключение) |
 | `patches/10-b19-t95-axp313.patch` | b19: DocumentsUI (его убирал override `TvdFileManager`), SELinux: приложения читают температуру процессора (`sysfs_thermal`, `sysfs_temp`). Для платы AXP313A: `PRODUCT_BOARD` из `T95_BOARD`, лёгкий сон s2idle (`axp313-s2idle.rc`, `/sys/power/mem_sleep` → `sysfs_power`), BCM43342 в `libhwinfo.c`, `config.txt` AP6334 с ccode XZ/11. Только для тестовых сборок (`T95_LOGGER=1`): сборщик логов `t95log` (dmesg/logcat в `/sdcard/T95_LOG`) |
+| `patches/11-b21-t95.patch` | b20/b21: анимации 0,5x по умолчанию (overlay SettingsProvider `defaults.xml`), Bluetooth LE local privacy только если контроллер умеет LL privacy (`btif_dm.cc`), Arc Launcher вместо FLauncher (`apps/Android.mk`, `apollo_t95.mk`), VLC из F-Droid. Фон создаёт `tools/t95_wallpaper.py` |
+| `patches/12-arclauncher-1.0.10-t95.patch` | [Arc Launcher](https://github.com/meddouribadis/arclauncher) (тег 1.0.10): тёмный фон по умолчанию. Сборка: Flutter 3.41.9, `flutter build apk --release --flavor play --split-per-abi --target-platform android-arm64` (во flavor `play` нет самообновления) |
 | `patches/07-kernel-5.4.302/` | ядро 5.4.125 → 5.4.302 (с b18): скрипт merge ACK, разрешённые конфликты, 0001–0003 (0003 — исправление зависания после сна), 0004 — BCM43342 в bcmdhd (только плата AXP313A). См. [Ядро](#ядро) |
 | `longan/device/config/chips/h618/configs/t95-axp313/` | папка платы H616-T95MAX-AXP313A-V2.0: AXP313A (как у Zero 3), DRAM из стоковой прошивки A29, тактовая 32 кГц для AP6334, выводы NAND; создаётся двумя инструментами `t95_axp313_*` |
 | `tools/bl31_t95_patch.py` | создаёт `bin/bl31_t95.bin` из `bl31.bin`: пропуск «hardware check» только для H618 (0x1F4C). С `--fakeoff` — ещё старый обход выключения из b13–b15 (PSCI SYSTEM_OFF, 0x1CF0..0x1D00), с b16 не нужен |
@@ -151,6 +160,7 @@ USB) находится в ПЗУ процессора, стереть его н
 | `tools/t95_sys_config.py` | генератор `sys_config.fex` t95 из p2 + стокового `sys_config.fex` T95 |
 | `tools/gen_app_keys.sh` | генерация своих ключей приложений (platform/media/shared/networkstack/releasekey) |
 | `tools/t95_bootsound.py` | громкость звука загрузки в `bootanimation.zip` (b19: `-24` дБ) |
+| `tools/t95_wallpaper.py` | создаёт системный фон по умолчанию (тёмный градиент, b20+) в overlay `apollo-t95` (нужен Pillow) |
 | `tools/magisk-boot.sh` | вариант с root: патчит Magisk-ом `boot.img` из signed target files, переподписывает vbmeta своим ключом AVB; затем `pack -v` |
 | `tools/t95_axp313_board_dts.py`, `tools/t95_axp313_sys_config.py` | создают `board.dts` и `sys_config.fex` для `configs/t95-axp313` из p2 (+ стоковый `sys_config.fex` этой платы) |
 
@@ -166,17 +176,18 @@ cp -a device/softwinner/apollo/apollo-p2 device/softwinner/apollo/apollo-t95
 cp    device/softwinner/apollo/apollo_p2.mk device/softwinner/apollo/apollo_t95.mk
 bash ../t95-h616-android12/patches/07-kernel-5.4.302/merge-ack-5.4.302.sh longan/kernel/linux-5.4 ~/k302   # ядро 5.4.302
 rsync -a --delete --exclude=.git ~/k302/linux-5.4/ longan/kernel/linux-5.4/
-for p in 03a 03b 04 05 08 09 10; do git apply -p1 ../t95-h616-android12/patches/$p-*.patch; done   # или patch -p1 < ...
+for p in 03a 03b 04 05 08 09 10 11; do git apply -p1 ../t95-h616-android12/patches/$p-*.patch; done   # или patch -p1 < ...
 B=device/softwinner/apollo/common/media/bootanimation/bootanimation.zip
 python3 ../t95-h616-android12/tools/t95_bootsound.py $B $B.new -24 && mv $B.new $B   # звук загрузки -24 дБ
+python3 ../t95-h616-android12/tools/t95_wallpaper.py device/softwinner/apollo/apollo-t95/overlay/frameworks/base/core/res/res
 python3 ../t95-h616-android12/tools/bl31_t95_patch.py longan/device/config/chips/h618/bin/bl31.bin \
         longan/device/config/chips/h618/bin/bl31_t95.bin
 ```
 
 APK приложений кладутся в `device/softwinner/apollo/apollo-t95/apps/<Имя>/`, нативные библиотеки из APK
-распаковать в `apps/<Имя>/lib/arm64/` (см. `apps/Android.mk`, там же SHA-256 каждого APK): FLauncher
-(собранный с патчем 06), MaterialFiles 1.7.5 (F-Droid), CromiteWebView 153.0.8010.37 (arm64
-SystemWebView), SmartTube 32.56 stable, VLC 3.7.1 arm64, Downloader 2.0.4 (+ `split_config.*`),
+распаковать в `apps/<Имя>/lib/arm64/` (см. `apps/Android.mk`, там же SHA-256 каждого APK): ArcLauncher
+(собранный с патчем 12; до b19 FLauncher с патчем 06), MaterialFiles 1.7.5 (F-Droid), CromiteWebView 153.0.8010.37 (arm64
+SystemWebView), SmartTube 32.56 stable, VLC 3.7.2 arm64 (сборка F-Droid), Downloader 2.0.4 (+ `split_config.*`),
 F-Droid 2.0.1.
 
 Ключи: свои `toc_keys` в `vendor/security/toc_keys` (secure boot, vbmeta), свои ключи приложений:
@@ -296,11 +307,12 @@ T95 бывают с другим PMIC (например AXP313A/AXP1530), пам
   Allwinner (`configs/p2`) и остаются под лицензией этих файлов.
 - Патчи к AOSP, BSP Allwinner и device tree — под лицензией изменяемых файлов (в основном Apache-2.0;
   ядро и файлы в `patches/07-kernel-5.4.302/resolved/` — GPL-2.0).
-- `patches/06-flauncher-v2025.07.001-t95.patch` — изменение FLauncher, GPL-3.0.
+- `patches/06-flauncher-v2025.07.001-t95.patch` — изменение FLauncher, `patches/12-arclauncher-1.0.10-t95.patch` —
+  изменение Arc Launcher, оба GPL-3.0.
 - Инструменты в `tools/` и документация — Apache-2.0 (см. [LICENSE](LICENSE)).
-- Предустановленные приложения не изменены (кроме FLauncher), лицензии и подписи — авторов.
+- Предустановленные приложения не изменены (кроме FLauncher / Arc Launcher), лицензии и подписи — авторов.
 
 ## Благодарности
 
-Orange Pi (исходники H618 Android 12), Allwinner BSP, osrosal (FLauncher), авторы SmartTube, VLC,
+Orange Pi (исходники H618 Android 12), Allwinner BSP, osrosal (FLauncher), meddouribadis (Arc Launcher), авторы SmartTube, VLC,
 F-Droid, Material Files, Cromite.

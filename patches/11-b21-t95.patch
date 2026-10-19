@@ -1,0 +1,97 @@
+--- a/device/softwinner/apollo/apollo-t95/apps/Android.mk	2026-10-19 13:32:38.096451977 +0200
++++ b/device/softwinner/apollo/apollo-t95/apps/Android.mk	2026-10-19 13:33:37.696213580 +0200
+@@ -21,6 +21,25 @@
+ LOCAL_OVERRIDES_PACKAGES := TvLauncher Launcher3 Launcher3QuickStep
+ include $(BUILD_PREBUILT)
+ 
++# Arc Launcher 1.0.10 (форк LTvLauncher/FLauncher, GPL-3.0), ПЕРЕСОБРАН (патч 12, Flutter 3.41.9, вариант "play" =
++# без самообновления, REQUEST_INSTALL_PACKAGES нет): единственное изменение — тёмный фон по умолчанию (viciousStance).
++# Анимация рамки и так выключена по умолчанию (0% CPU), нет потери фокуса с BT-мышью. С b21 вместо FLauncher
++# (модуль выше оставлен, но не входит в PRODUCT_PACKAGES). Подписывается сборкой системным ключом.
++include $(CLEAR_VARS)
++LOCAL_MODULE := ArcLauncher
++LOCAL_MODULE_CLASS := APPS
++LOCAL_MODULE_SUFFIX := .apk
++LOCAL_SRC_FILES := ArcLauncher/ArcLauncher.apk
++LOCAL_CERTIFICATE := testkey
++LOCAL_PRODUCT_MODULE := true
++LOCAL_DEX_PREOPT := false
++LOCAL_ENFORCE_USES_LIBRARIES := false
++LOCAL_MULTILIB := 64
++LOCAL_PREBUILT_JNI_LIBS := ArcLauncher/lib/arm64/libapp.so ArcLauncher/lib/arm64/libflutter.so \
++    ArcLauncher/lib/arm64/libsqlite3.so ArcLauncher/lib/arm64/libdatastore_shared_counter.so
++LOCAL_OVERRIDES_PACKAGES := TvLauncher Launcher3 Launcher3QuickStep FLauncher
++include $(BUILD_PREBUILT)
++
+ # Material Files 1.7.5, сборка F-Droid (me.zhanghai.android.files), sha256 2fe900bf...6e8a
+ include $(CLEAR_VARS)
+ LOCAL_MODULE := MaterialFiles
+@@ -70,7 +89,9 @@
+     SmartTube/lib/arm64/libglide-webp.so SmartTube/lib/arm64/libj2v8.so
+ include $(BUILD_PREBUILT)
+ 
+-# VLC 3.7.1 arm64 (org.videolan.vlc, подпись VideoLAN c8768d2c...), sha256 bea9ea0c...de74 (= официальный .sha256)
++# VLC 3.7.2 arm64, сборка F-Droid (org.videolan.vlc_13070206.apk, подпись F-Droid 80535be6...), sha256 e748c3e0...1b66
++# (= index-v2 F-Droid): обновляется через F-Droid. До b20 был APK VideoLAN 3.7.1 (подпись c8768d2c..., F-Droid
++# отказывался обновлять из-за другой подписи).
+ include $(CLEAR_VARS)
+ LOCAL_MODULE := VLC
+ LOCAL_MODULE_CLASS := APPS
+--- a/device/softwinner/apollo/apollo-t95/overlay/frameworks/base/packages/SettingsProvider/res/values/defaults.xml	1970-01-01 01:00:00.000000000 +0100
++++ b/device/softwinner/apollo/apollo-t95/overlay/frameworks/base/packages/SettingsProvider/res/values/defaults.xml	2026-10-19 13:33:37.688820615 +0200
+@@ -0,0 +1,9 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- T95: анимации окон и переходов 0,5x по умолчанию.
++     С Mali-G31 + HWC Allwinner анимации открытия/закрытия приложений на 1x дают разорванные/двоящиеся
++     кадры (обе платы, AXP806 и AXP313). 0 убирает их полностью, но слишком резко; 0,5x — компромисс.
++     Обе настройки можно изменить в «Для разработчиков». -->
++<resources>
++    <fraction name="def_window_animation_scale">50%</fraction>
++    <fraction name="def_window_transition_scale">50%</fraction>
++</resources>
+--- a/device/softwinner/apollo/apollo-t95/sepolicy/t95.te	2026-10-19 13:32:38.098144105 +0200
++++ b/device/softwinner/apollo/apollo-t95/sepolicy/t95.te	2026-10-19 13:33:37.687216265 +0200
+@@ -48,7 +48,7 @@
+ dontaudit surfaceflinger hal_graphics_composer_default:file r_file_perms;
+ 
+ # HAL CEC читает hdmi.cec.debug каждые 2 с: теперь с меткой vendor_t95_hwc_prop (property_contexts), get_prop выше
+-# FLauncher (Flutter) читает /proc/sys/vm/max_map_count: AOSP запрещает приложениям, безвредно -> оставлено
++# FLauncher/Arc Launcher (Flutter) читает /proc/sys/vm/max_map_count: AOSP запрещает приложениям, безвредно -> оставлено
+ 
+ # installd при старте пытается писать в общий узел device (tasks memcg/blkio на tmpfs /dev): безвредно -> dontaudit
+ dontaudit installd device:file write;
+--- a/device/softwinner/apollo/apollo_t95.mk	2026-10-19 13:33:37.675515498 +0200
++++ b/device/softwinner/apollo/apollo_t95.mk	2026-10-19 13:33:37.676124949 +0200
+@@ -46,9 +46,9 @@
+ PRODUCT_SYSTEM_PROPERTIES += ro.logd.kernel=true ro.logd.size=4M
+ endif
+ 
+-# приложения (apollo-t95/apps, оригинальные APK с подписью авторов): FLauncher как домашний экран вместо TvLauncher,
++# приложения (apollo-t95/apps, оригинальные APK с подписью авторов): Arc Launcher как домашний экран вместо TvLauncher (b21, раньше FLauncher),
+ # файловый менеджер Material Files, Cromite вместо WebView AOSP 91
+-PRODUCT_PACKAGES += FLauncher MaterialFiles CromiteWebView SmartTube VLC Downloader FDroid
++PRODUCT_PACKAGES += ArcLauncher MaterialFiles CromiteWebView SmartTube VLC Downloader FDroid
+ # системное окно выбора файлов/папок (ACTION_OPEN_DOCUMENT_TREE): без него Alpha Backup вылетает, а Material Files не добавляет SD
+ # (mainline.mk требует GoogleDocumentsUIPrebuilt, которого в исходниках нет)
+ PRODUCT_PACKAGES += DocumentsUI
+--- a/system/bt/btif/src/btif_dm.cc	2026-10-19 13:32:38.094947663 +0200
++++ b/system/bt/btif/src/btif_dm.cc	2026-10-19 13:33:37.696568136 +0200
+@@ -1453,8 +1453,16 @@
+     BTA_DmSetDeviceName(btif_get_default_local_name());
+   }
+ 
+-  /* Enable local privacy */
+-  BTA_DmBleConfigLocalPrivacy(BLE_LOCAL_PRIVACY_ENABLED);
++  /* Enable local privacy.
++   * T95: только если контроллер умеет LL privacy (resolving list). На контроллерах
++   * BT 4.0 (BCM43342 на T95-AXP313) privacy только в хосте меняет наш RPA, и
++   * сопряжённые BLE-мыши/пульты после перезагрузки больше не подключаются. */
++  bool le_privacy = BLE_LOCAL_PRIVACY_ENABLED &&
++                    controller_get_interface()->supports_ble_privacy();
++  LOG_INFO("LE local privacy %s (controller LL privacy %d)",
++           le_privacy ? "enabled" : "disabled",
++           controller_get_interface()->supports_ble_privacy());
++  BTA_DmBleConfigLocalPrivacy(le_privacy);
+ 
+   /* for each of the enabled services in the mask, trigger the profile
+    * enable */
