@@ -1,0 +1,15 @@
+diff -ruN a/device/softwinner/apollo/t95-common/t95/fd655.rc b/device/softwinner/apollo/t95-common/t95/fd655.rc
+--- a/device/softwinner/apollo/t95-common/t95/fd655.rc	2026-10-20 23:02:05.667000057 +0200
++++ b/device/softwinner/apollo/t95-common/t95/fd655.rc	2026-10-20 23:02:05.675766519 +0200
+@@ -4,6 +4,11 @@
+     user root
+     group system wakelock
+ 
++# Сразу при загрузке «boot» на дисплее, как в стоковой прошивке (служба часов стартует только с late_start,
++# через 10-15 с после включения, когда готовы /data и часовой пояс)
++on early-init
++    exec - root -- /vendor/bin/fd655.sh text boot
++
+ # «Выключить» (fake poweroff, BL31 уходит в standby): FD655 сохранил бы последнее изображение -> гасим
+ on shutdown
+     stop fd655

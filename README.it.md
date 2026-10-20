@@ -80,15 +80,15 @@ spegnimento/accensione dal telecomando, display FD655, entrambe le USB.
 **Non provato:** audio via HDMI, CEC.
 
 Una seconda scheda, **H616-T95MAX-AXP313A-V2.0** (PMIC **AXP313A**, Wi-Fi/BT **BCM43342**, 2 GB), ha la sua
-cartella `configs/t95-axp313`, il suo prodotto `apollo_t95axp313` e **build di prova** (pre-release `axp313-*`),
-provate da un utente 4PDA sulla versione **eMMC**. Dalla axp313-test11 anche lì sospensione e risveglio funzionano:
+cartella `configs/t95-axp313`, il suo prodotto `apollo_t95axp313` e la sua **release** (`axp313-final`, prima pre-release di prova `axp313-*`),
+provata da un utente 4PDA sulla versione **eMMC**. Dalla axp313-test11 anche lì sospensione e risveglio funzionano:
 l'interrupt di risveglio del Wi-Fi (host-wake) bloccava la sospensione leggera s2idle, ora non sveglia più il
 sistema (kernel `0005`). La versione **NAND** di quella scheda per ora non si flasha (il driver NAND di U-Boot del
 BSP non avvia il chip).
 
 Le due schede si chiamano **T95-AXP806** (questo box) e **T95-AXP313** (`-eMMC` / `-NAND`). Non flashare mai
-un'immagine fatta per una scheda sull'altra: il nome del file dice per quale scheda è (`update.T95-AXP806-…`,
-`update.T95-AXP313-eMMC-…`; fino alla b22: `t95axp806` / `t95axp313`).
+un'immagine fatta per una scheda sull'altra: il nome del file dice per quale scheda è (`T95-AXP806-…`,
+`T95-AXP313-eMMC-…`; b23 e build di prova: `update.T95-…`; fino alla b22: `t95axp806` / `t95axp313`).
 
 > [!WARNING]
 > I T95 escono con RAM, PMIC e chip Wi-Fi diversi. Su un'altra revisione della scheda questo firmware
@@ -98,15 +98,16 @@ un'immagine fatta per una scheda sull'altra: il nome del file dice per quale sch
 
 1. **Salva il firmware attuale**, se ce l'hai, oppure trova quello originale della tua revisione.
 2. Servono un cavo USB A-A (maschio-maschio) e PhoenixSuit (Windows) o OpenixSuit (Linux).
-3. Scarica `update.T95-AXP806-a12-b23-user.img.xz` dalle [Releases](../../releases) (oppure
-   `update.T95-AXP806-a12-b23-magisk-user.img.xz` con root) e decomprimilo (7-Zip su Windows, `xz -d` su Linux),
+3. Scarica dalle [Releases](../../releases) l'immagine della tua scheda: `T95-AXP806-a12-b24-final-user.img.xz`
+   (release `b24-final`) o `T95-AXP313-eMMC-a12-final-user.img.xz` (release `axp313-final`), oppure il file `-magisk-`
+   della stessa release con root, e decomprimilo (7-Zip su Windows, `xz -d` su Linux),
    poi seleziona il `.img` e scegli il flash completo (Full Erase).
 4. A box spento tieni premuto il tasto reset (dentro il jack AV), collega l'USB al PC e rilascia il tasto
    dopo 3–5 s: il flash parte.
 5. Il primo avvio richiede circa 1–2 minuti.
 
 Senza cavo si può usare una microSD preparata con PhoenixCard (modalità *Product*).
-**Il flash cancella tutti i dati del box.**
+**Il flash cancella tutti i dati del box.** Il file `.img` è sempre un'immagine di flash completo, non un aggiornamento che conserva i dati.
 
 Dalla b23 il nome del prodotto e del dispositivo Android contiene la scheda (`apollo_t95axp806` / `apollo_t95axp313`,
 prima `apollo_t95` per entrambe), quindi un pacchetto OTA di una scheda viene rifiutato sull'altra. Se arrivi dalla
@@ -182,6 +183,7 @@ condividono `device/softwinner/apollo/t95-common`. Macchina di compilazione: Ubu
 | `patches/07-kernel-5.4.302/` | kernel 5.4.125 → 5.4.302 (dalla b18): script di merge ACK, conflitti risolti, 0001–0003 (0003 = correzione del blocco dopo la sospensione), solo scheda AXP313A: 0004 = BCM43342 nel bcmdhd, 0005 = l'host-wake del Wi-Fi non sveglia più il sistema (`oob_wake=0`, corregge s2idle). Vedi [Kernel](#kernel) |
 | `patches/13-b23-t95.patch` | b23: gestore Allwinner delle app in background senza blocchi (`device/softwinner/common/config/awbms_config`: `blockBroadcast`, `skipService` a false), così le app dell'utente ricevono `BOOT_COMPLETED` e possono avviare servizi; commento di Arc in `apps/Android.mk` |
 | `patches/14-split-boards-t95axp806-t95axp313.patch` | b23: un prodotto per scheda. `apollo_t95.mk` → `t95-common/t95_product.mk` (comune), nuovi `apollo_t95axp806.mk` / `apollo_t95axp313.mk`, cartelle dispositivo `apollo-t95axp806` / `apollo-t95axp313` (BoardConfig, `system/`, camera); apps, overlay, sepolicy, `t95/`, `t95log/` spostati in `t95-common`. Contiene rinomine: va applicata con `git apply` |
+| `patches/15-b24-fd655-boot.patch` | b24: il display frontale mostra `boot` pochi secondi dopo l'accensione, come il firmware stock (`fd655.rc`: `on early-init`); prima restava spento finché non partiva il servizio orologio (10–15 s) |
 | `longan/device/config/chips/h618/configs/t95-axp313/` | cartella della scheda H616-T95MAX-AXP313A-V2.0: AXP313A (come lo Zero 3), DRAM dal firmware stock A29, clock 32 kHz per l'AP6334, pin NAND; generata dai due strumenti `t95_axp313_*` |
 | `tools/bl31_t95_patch.py` | crea `bin/bl31_<scheda>.bin` (`bl31_t95-axp806.bin`, `bl31_t95-axp313.bin`; `pack` lo sceglie in base al nome della scheda) da `bl31.bin`: salta il "hardware check" che accetta solo H618 (0x1F4C). Con `--fakeoff` aggiunge anche il vecchio aggiramento dello spegnimento delle b13–b15 (PSCI SYSTEM_OFF, 0x1CF0..0x1D00), non più necessario dalla b16 |
 | `tools/t95_board_dts.py` | genera il `board.dts` t95-axp806 da quello p2 (il risultato è già in `configs/t95-axp806`) |
@@ -206,7 +208,7 @@ cp -a device/softwinner/apollo/apollo-p2 device/softwinner/apollo/apollo-t95
 cp    device/softwinner/apollo/apollo_p2.mk device/softwinner/apollo/apollo_t95.mk
 bash ../t95-h616-android12/patches/07-kernel-5.4.302/merge-ack-5.4.302.sh longan/kernel/linux-5.4 ~/k302   # kernel 5.4.302
 rsync -a --delete --exclude=.git ~/k302/linux-5.4/ longan/kernel/linux-5.4/
-for p in 03a 03b 04 05 08 09 10 11 13 14; do git apply -p1 ../t95-h616-android12/patches/$p-*.patch; done   # 14: solo git apply (rinomine)
+for p in 03a 03b 04 05 08 09 10 11 13 14 15; do git apply -p1 ../t95-h616-android12/patches/$p-*.patch; done   # 14: solo git apply (rinomine)
 B=device/softwinner/apollo/common/media/bootanimation/bootanimation.zip
 python3 ../t95-h616-android12/tools/t95_bootsound.py $B $B.new -24 && mv $B.new $B   # musica di avvio -24 dB
 python3 ../t95-h616-android12/tools/t95_wallpaper.py device/softwinner/apollo/t95-common/overlay/frameworks/base/core/res/res

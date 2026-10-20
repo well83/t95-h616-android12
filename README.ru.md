@@ -76,14 +76,14 @@ Ethernet AC200 (100 Мбит).
 **Не проверено:** звук через HDMI, CEC.
 
 Вторая плата, **H616-T95MAX-AXP313A-V2.0** (PMIC **AXP313A**, Wi-Fi/BT **BCM43342**, 2 ГБ), имеет свою папку
-`configs/t95-axp313`, свой продукт `apollo_t95axp313` и **тестовые сборки** (pre-release `axp313-*`), их проверяет
+`configs/t95-axp313`, свой продукт `apollo_t95axp313` и свой **релиз** (`axp313-final`, раньше тестовые pre-release `axp313-*`), его проверил
 пользователь 4PDA на версии с **eMMC**. С axp313-test11 там тоже работают сон и пробуждение: прерывание
 пробуждения Wi-Fi (host-wake) блокировало лёгкий сон s2idle, теперь оно не будит систему (ядро, `0005`). Версия
 этой платы с **NAND** пока не прошивается (драйвер NAND в U-Boot из BSP не запускает микросхему).
 
 Платы называются **T95-AXP806** (эта приставка) и **T95-AXP313** (`-eMMC` / `-NAND`). Не прошивайте образ для одной
-платы на другую: в имени файла указано, для какой он платы (`update.T95-AXP806-…`, `update.T95-AXP313-eMMC-…`;
-до b22: `t95axp806` / `t95axp313`).
+платы на другую: в имени файла указано, для какой он платы (`T95-AXP806-…`, `T95-AXP313-eMMC-…`;
+b23 и тестовые сборки: `update.T95-…`; до b22: `t95axp806` / `t95axp313`).
 
 > [!WARNING]
 > T95 бывают с разной памятью, PMIC и Wi-Fi. На другой ревизии платы прошивка может не загрузиться —
@@ -93,15 +93,16 @@ Ethernet AC200 (100 Мбит).
 
 1. **Сохраните свою текущую прошивку**, если она у вас есть (или найдите сток для своей ревизии).
 2. Нужен кабель USB A-A (папа-папа) и PhoenixSuit (Windows) или OpenixSuit (Linux).
-3. Скачайте `update.T95-AXP806-a12-b23-user.img.xz` из [Releases](../../releases) (или
-   `update.T95-AXP806-a12-b23-magisk-user.img.xz` с root) и распакуйте (7-Zip в Windows, `xz -d` в Linux), затем
+3. Скачайте из [Releases](../../releases) образ для своей платы: `T95-AXP806-a12-b24-final-user.img.xz`
+   (релиз `b24-final`) или `T95-AXP313-eMMC-a12-final-user.img.xz` (релиз `axp313-final`), для root — файл `-magisk-`
+   того же релиза, и распакуйте (7-Zip в Windows, `xz -d` в Linux), затем
    выберите `.img`, режим полной прошивки (Full Erase).
 4. На выключенной приставке зажмите кнопку reset (в отверстии AV), подключите USB к ПК, отпустите кнопку
    через 3–5 с — начнётся прошивка.
 5. Первая загрузка ~1–2 минуты.
 
 Альтернатива без кабеля: microSD, подготовленная в PhoenixCard (режим «Product»).
-**Все данные на приставке будут стёрты.**
+**Все данные на приставке будут стёрты.** Файл `.img` — это всегда полная прошивка, а не обновление с сохранением данных.
 
 С b23 в имени продукта и устройства Android есть плата (`apollo_t95axp806` / `apollo_t95axp313`, раньше
 `apollo_t95` для обеих), поэтому OTA-пакет одной платы не установится на другую. С b22 и старше нужно один раз
@@ -172,6 +173,7 @@ USB) находится в ПЗУ процессора, стереть его н
 | `patches/07-kernel-5.4.302/` | ядро 5.4.125 → 5.4.302 (с b18): скрипт merge ACK, разрешённые конфликты, 0001–0003 (0003 — исправление зависания после сна), только плата AXP313A: 0004 — BCM43342 в bcmdhd, 0005 — host-wake Wi-Fi больше не будит систему (`oob_wake=0`, исправляет s2idle). См. [Ядро](#ядро) |
 | `patches/13-b23-t95.patch` | b23: менеджер фоновых процессов Allwinner без блокировок (`device/softwinner/common/config/awbms_config`: `blockBroadcast`, `skipService` = false) — приложения пользователя получают `BOOT_COMPLETED` и могут запускать сервисы; комментарий Arc в `apps/Android.mk` |
 | `patches/14-split-boards-t95axp806-t95axp313.patch` | b23: по продукту на плату. `apollo_t95.mk` → `t95-common/t95_product.mk` (общий), новые `apollo_t95axp806.mk` / `apollo_t95axp313.mk`, папки устройств `apollo-t95axp806` / `apollo-t95axp313` (BoardConfig, `system/`, camera); apps, overlay, sepolicy, `t95/`, `t95log/` перенесены в `t95-common`. Содержит переименования: применять через `git apply` |
+| `patches/15-b24-fd655-boot.patch` | b24: передний дисплей показывает `boot` через несколько секунд после включения, как стоковая прошивка (`fd655.rc`: `on early-init`); раньше он был тёмным до запуска службы часов (10–15 с) |
 | `longan/device/config/chips/h618/configs/t95-axp313/` | папка платы H616-T95MAX-AXP313A-V2.0: AXP313A (как у Zero 3), DRAM из стоковой прошивки A29, тактовая 32 кГц для AP6334, выводы NAND; создаётся двумя инструментами `t95_axp313_*` |
 | `tools/bl31_t95_patch.py` | создаёт `bin/bl31_<плата>.bin` (`bl31_t95-axp806.bin`, `bl31_t95-axp313.bin`; `pack` выбирает его по имени платы) из `bl31.bin`: пропуск «hardware check» только для H618 (0x1F4C). С `--fakeoff` — ещё старый обход выключения из b13–b15 (PSCI SYSTEM_OFF, 0x1CF0..0x1D00), с b16 не нужен |
 | `tools/t95_board_dts.py` | генератор `board.dts` t95-axp806 из p2 (результат уже в `configs/t95-axp806`) |
@@ -194,7 +196,7 @@ cp -a device/softwinner/apollo/apollo-p2 device/softwinner/apollo/apollo-t95
 cp    device/softwinner/apollo/apollo_p2.mk device/softwinner/apollo/apollo_t95.mk
 bash ../t95-h616-android12/patches/07-kernel-5.4.302/merge-ack-5.4.302.sh longan/kernel/linux-5.4 ~/k302   # ядро 5.4.302
 rsync -a --delete --exclude=.git ~/k302/linux-5.4/ longan/kernel/linux-5.4/
-for p in 03a 03b 04 05 08 09 10 11 13 14; do git apply -p1 ../t95-h616-android12/patches/$p-*.patch; done   # 14: только git apply (переименования)
+for p in 03a 03b 04 05 08 09 10 11 13 14 15; do git apply -p1 ../t95-h616-android12/patches/$p-*.patch; done   # 14: только git apply (переименования)
 B=device/softwinner/apollo/common/media/bootanimation/bootanimation.zip
 python3 ../t95-h616-android12/tools/t95_bootsound.py $B $B.new -24 && mv $B.new $B   # звук загрузки -24 дБ
 python3 ../t95-h616-android12/tools/t95_wallpaper.py device/softwinner/apollo/t95-common/overlay/frameworks/base/core/res/res
