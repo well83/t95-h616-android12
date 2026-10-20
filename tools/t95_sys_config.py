@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""sys_config.fex Orange Pi Zero 3 (configs/p2) -> T95 H616 (configs/t95).
+"""sys_config.fex Orange Pi Zero 3 (configs/p2) -> T95 H616 (configs/t95-axp806).
 В проверенной на приставке цепочке OmniROM sboot (DRAM) брал СТОКОВЫЙ sys_config T95, а U-Boot — исправленный
 от Zero3; здесь файл один, поэтому:
   - из стока T95 (sys_config.fex прошивки): секции DRAM (dram_para*, dram_select_para), twi_para, gpio_bias

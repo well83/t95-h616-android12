@@ -27,7 +27,9 @@ servers. Instead of cleaning it, I rebuilt Android 12 from scratch, starting fro
   Allwinner SDK keys that anyone can use
 - **Arc Launcher** 1.0.10 (since b21; a GPL fork of LTvLauncher/FLauncher), rebuilt without the self-updater and
   with a dark default background. It uses 0% CPU when idle and keeps the remote focus when a Bluetooth mouse connects
-  during boot. Up to b19 the launcher was **FLauncher** (osrosal fork 2025.07.001) with the card highlight animation
+  during boot. Since b23 the home screen opens with *All Apps* already visible (no default Favorites dock, which
+  pushed the apps below the screen) and the focus frame is always drawn (with some mice connected, e.g. a Logitech
+  M590, it disappeared and the remote seemed dead). Up to b19 the launcher was **FLauncher** (osrosal fork 2025.07.001) with the card highlight animation
   off by default (with it on, it redraws at 60 fps and keeps one core at ~95%). Arc is in English only for now.
 - Apps: **F-Droid**, **SmartTube**, **VLC**, **Material Files**, **Downloader** (AFTVnews) and
   **Cromite 153** as WebView (replacing the old AOSP WebView 91)
@@ -37,6 +39,10 @@ servers. Instead of cleaning it, I rebuilt Android 12 from scratch, starting fro
   open/close), a dark neutral system wallpaper instead of the Orange Pi logo, **VLC from F-Droid** (it now updates
   from F-Droid), and Bluetooth LE privacy only on controllers that support it (BLE mice/remotes reconnect after a
   reboot on BT 4.0 chips)
+- Since b23: **apps installed by the user can start at boot** (temperature overlays, weather widgets, "start on
+  boot" options). Allwinner's background manager (Awbms, `awbms_config`) blocked `BOOT_COMPLETED` and background
+  services for every app not on its whitelist. The build is now split by board: the image names, the Android
+  product and the device name say which board they are for (see [Flashing](#flashing))
 - IR remote (it also wakes the box from sleep), FD655 front display (clock and LAN/Wi-Fi/USB icons),
   device name `T95_h616`
 - **Power off from the remote**: a long press on power opens a *Power off / Restart* menu, which you can
@@ -69,10 +75,14 @@ remote, FD655 display, both USB ports.
 **Not tested:** HDMI audio, CEC.
 
 A second board, **H616-T95MAX-AXP313A-V2.0** (PMIC **AXP313A**, Wi-Fi/BT **BCM43342**, 2 GB), has its own board
-folder `configs/t95-axp313` and **test builds** (pre-releases `axp313-*`), tested by a 4PDA user on the **eMMC**
-version. The **NAND** version of that board does not flash yet (the U-Boot NAND driver of the BSP does not start
-the chip). Never flash an image made for one PMIC on the other board: the file names say which board they are
-for (`t95axp806` / `t95axp313`).
+folder `configs/t95-axp313`, its own product `apollo_t95axp313` and **test builds** (pre-releases `axp313-*`), tested
+by a 4PDA user on the **eMMC** version. Since axp313-test11 sleep and wake-up work there too: the Wi-Fi host-wake
+interrupt blocked light sleep (s2idle), so it is no longer a wakeup source (kernel `0005`). The **NAND** version of
+that board does not flash yet (the U-Boot NAND driver of the BSP does not start the chip).
+
+The two boards are called **T95-AXP806** (this box) and **T95-AXP313** (`-eMMC` / `-NAND`). Never flash an image made
+for one board on the other: the file names say which board they are for (`update.T95-AXP806-…`,
+`update.T95-AXP313-eMMC-…`; up to b22: `t95axp806` / `t95axp313`).
 
 > [!WARNING]
 > T95 boxes ship with different RAM, PMIC and Wi-Fi chips. On another board revision this firmware may
@@ -82,8 +92,8 @@ for (`t95axp806` / `t95axp313`).
 
 1. **Back up your current firmware** if you have it, or find the stock firmware for your revision.
 2. You need a USB A-A (male-male) cable and PhoenixSuit (Windows) or OpenixSuit (Linux).
-3. Download `update.opi-t95axp806-a12-b21-user.img.xz` from [Releases](../../releases) (or
-   `update.opi-t95axp806-a12-b21-magisk-user.img.xz` with root) and decompress it (7-Zip on Windows, `xz -d` on Linux),
+3. Download `update.T95-AXP806-a12-b23-user.img.xz` from [Releases](../../releases) (or
+   `update.T95-AXP806-a12-b23-magisk-user.img.xz` with root) and decompress it (7-Zip on Windows, `xz -d` on Linux),
    then select the `.img` and choose a full flash (Full Erase).
 4. With the box off, hold the reset button (inside the AV jack), connect USB to the PC, and release the
    button after 3–5 s. Flashing starts.
@@ -91,6 +101,10 @@ for (`t95axp806` / `t95axp313`).
 
 Without a cable, you can use a microSD card prepared with PhoenixCard (*Product* mode).
 **Flashing erases all data on the box.**
+
+Since b23 the Android product and device names include the board (`apollo_t95axp806` / `apollo_t95axp313`, before:
+`apollo_t95` for both), so an OTA package made for one board is rejected on the other. Coming from b22 or older,
+flash the full image once.
 
 ### Going back to stock or another firmware
 
@@ -133,8 +147,9 @@ cannot be erased, so the box can always be recovered.
 
 The official Orange Pi Zero 3 sources, **H618-Android12-Src** (Orange Pi Google Drive, 2023-07-13, archive
 `H618-Android12-Src.tar.gz{aa..ar}`; the md5 from the Orange Pi folder matches).
-In the sources the Zero 3 board is called **p2** (product `apollo_p2`). The patches add a new board **t95**
-and a new product **apollo_t95**. Build host: Ubuntu 22.04.
+In the sources the Zero 3 board is called **p2** (product `apollo_p2`). The repository adds the boards
+**t95-axp806** and **t95-axp313** (longan) and the products **apollo_t95axp806** and **apollo_t95axp313** (Android),
+which share `device/softwinner/apollo/t95-common`. Build host: Ubuntu 22.04.
 
 **Signing keys are not included.** Generate your own (`tools/gen_app_keys.sh` for the app keys,
 `dragonsecboot` for `toc_keys`).
@@ -143,25 +158,27 @@ and a new product **apollo_t95**. Build host: Ubuntu 22.04.
 
 | File | Contents |
 |---|---|
-| `longan/device/config/chips/h618/configs/t95/` | ready board folder `t95` (copy it into the sources): `configs/p2` (Zero 3) + changes: kernel `board.dts` (AXP806, eMMC DDR52, gmac1 + AC200, LEDs, VBUS PH8, USB0 host, IR fe02, OPP…), `sys_config.fex` (DRAM from stock T95), `uboot-board.dts` |
-| `patches/03a-device-apollo-t95-vs-p2.patch` | device `apollo-t95` = copy of `apollo-p2` + changes (BoardConfig, sepolicy, FD655, IR keymap, HDMI 1080p, NetworkStack RRO, WebView overlay, `apps/Android.mk`) |
+| `longan/device/config/chips/h618/configs/t95-axp806/` | ready board folder `t95-axp806` (copy it into the sources; called `t95` up to b22): `configs/p2` (Zero 3) + changes: kernel `board.dts` (AXP806, eMMC DDR52, gmac1 + AC200, LEDs, VBUS PH8, USB0 host, IR fe02, OPP…), `sys_config.fex` (DRAM from stock T95), `uboot-board.dts` |
+| `patches/03a-device-apollo-t95-vs-p2.patch` | device `apollo-t95` = copy of `apollo-p2` + changes (split into the two boards by patch 14) (BoardConfig, sepolicy, FD655, IR keymap, HDMI 1080p, NetworkStack RRO, WebView overlay, `apps/Android.mk`) |
 | `patches/03b-product-apollo_t95-vs-p2.patch` | `apollo_t95.mk` = copy of `apollo_p2.mk` + changes |
 | `patches/04-aw-fixes-64bit-security.patch` | Allwinner fixes: 64-bit build (modules depending on 32-bit blobs → 32-bit, printf/types, ABI dumps, HDR10+), security (unauthenticated network ADB, `platform_app mlstrustedsubject`, `service_contexts`, `/dev/watchdog`), `AndroidProducts.mk`, `pack4dist`, patch level 2025-01-01 |
 | `patches/05-aosp-security-r34-r69.patch` | AOSP security patches android-security-12.0.0_r34 → r69 (27 projects), including resolved conflicts and `make update-api`. Also contains one T95 line in `system/bt/btif/src/btif_dm.cc` (BT name from `bluetooth.device.default_name`) |
 | `patches/06-flauncher-v2025.07.001-t95.patch` | [FLauncher](https://github.com/osrosal/flauncher) (tag v2025.07.001): highlight animation off by default. Build: Flutter 3.24.5, JDK 17, `flutter build apk --release --split-per-abi --target-platform android-arm64` |
 | `patches/08-poweroff-menu-t95.patch` | power off and menu: long press on power opens Power off / Restart (`apollo-t95` overlay `config.xml`); SystemUI `GlobalActionsDialogLite` buttons selectable with the remote arrows (focus, white frame); FD655 turns off at shutdown (`fd655.rc` on shutdown); SELinux: audio.routing, dontaudit installd |
 | `patches/09-rtc-axp806-offctl-t95.patch` | fix for the RTC reset (b16): U-Boot (`pmu_axp806.c`) and the kernel (`axp2101.c`) clear bit 4 of AXP806 register 0x32 (OFF_CTL), which the binary sboot sets. With it set, every SoC reset cleared the whole RTC domain. See [Power off](#power-off) |
-| `patches/10-b19-t95-axp313.patch` | b19: DocumentsUI (the `TvdFileManager` override removed it), SELinux: apps read the CPU temperature (`sysfs_thermal`, `sysfs_temp`). For the AXP313A board: `PRODUCT_BOARD` from `T95_BOARD`, light sleep s2idle (`axp313-s2idle.rc`, `/sys/power/mem_sleep` → `sysfs_power`), BCM43342 in `libhwinfo.c`, AP6334 `config.txt` with ccode XZ/11. Test builds only (`T95_LOGGER=1`): log collector `t95log` (dmesg/logcat to `/sdcard/T95_LOG`) |
+| `patches/10-b19-t95-axp313.patch` | b19: DocumentsUI (the `TvdFileManager` override removed it), SELinux: apps read the CPU temperature (`sysfs_thermal`, `sysfs_temp`). For the AXP313A board: `PRODUCT_BOARD` from `T95_BOARD` (replaced by the two products of patch 14), light sleep s2idle (`axp313-s2idle.rc`, `/sys/power/mem_sleep` → `sysfs_power`), BCM43342 in `libhwinfo.c`, AP6334 `config.txt` with ccode XZ/11. Test builds only (`T95_LOGGER=1`): log collector `t95log` (dmesg/logcat to `/sdcard/T95_LOG`) |
 | `patches/11-b21-t95.patch` | b20/b21: animations 0.5x by default (SettingsProvider overlay `defaults.xml`), Bluetooth LE local privacy only if the controller supports LL privacy (`btif_dm.cc`), Arc Launcher in place of FLauncher (`apps/Android.mk`, `apollo_t95.mk`), VLC from F-Droid. The wallpaper is made by `tools/t95_wallpaper.py` |
-| `patches/12-arclauncher-1.0.10-t95.patch` | [Arc Launcher](https://github.com/meddouribadis/arclauncher) (tag 1.0.10): dark default background. Build: Flutter 3.41.9, `flutter build apk --release --flavor play --split-per-abi --target-platform android-arm64` (the `play` flavor has no self-updater) |
-| `patches/07-kernel-5.4.302/` | kernel 5.4.125 → 5.4.302 (since b18): ACK merge script, resolved conflicts, 0001–0003 (0003 = fix for the hang after sleep), 0004 = BCM43342 in bcmdhd (AXP313A board only). See [Kernel](#kernel) |
+| `patches/12-arclauncher-1.0.10-t95.patch` | [Arc Launcher](https://github.com/meddouribadis/arclauncher) (tag 1.0.10): dark default background; since b23 (1.0.10-t95.4) no default Favorites (the home screen opens on All Apps) and the focus highlight always on (`FocusHighlightStrategy.alwaysTraditional`). Build: Flutter 3.41.9, `flutter build apk --release --flavor play --split-per-abi --target-platform android-arm64` (the `play` flavor has no self-updater) |
+| `patches/07-kernel-5.4.302/` | kernel 5.4.125 → 5.4.302 (since b18): ACK merge script, resolved conflicts, 0001–0003 (0003 = fix for the hang after sleep), AXP313A board only: 0004 = BCM43342 in bcmdhd, 0005 = Wi-Fi host-wake no longer a wakeup source (`oob_wake=0`, fixes s2idle). See [Kernel](#kernel) |
+| `patches/13-b23-t95.patch` | b23: Allwinner background manager without blocks (`device/softwinner/common/config/awbms_config`: `blockBroadcast`, `skipService` false), so user apps receive `BOOT_COMPLETED` and can start services; Arc comment in `apps/Android.mk` |
+| `patches/14-split-boards-t95axp806-t95axp313.patch` | b23: one product per board. `apollo_t95.mk` → `t95-common/t95_product.mk` (shared), new `apollo_t95axp806.mk` / `apollo_t95axp313.mk`, device folders `apollo-t95axp806` / `apollo-t95axp313` (BoardConfig, `system/`, camera), apps, overlay, sepolicy, `t95/`, `t95log/` moved to `t95-common`. Contains renames: apply it with `git apply` |
 | `longan/device/config/chips/h618/configs/t95-axp313/` | board folder for H616-T95MAX-AXP313A-V2.0: AXP313A (as on the Zero 3), DRAM from the stock A29 firmware, AP6334 32 kHz clock, NAND pins; generated by the two `t95_axp313_*` tools |
-| `tools/bl31_t95_patch.py` | creates `bin/bl31_t95.bin` from `bl31.bin`: skips the H618-only "hardware check" (0x1F4C). With `--fakeoff` it also adds the old power-off workaround of b13–b15 (PSCI SYSTEM_OFF, 0x1CF0..0x1D00), not needed since b16 |
-| `tools/t95_board_dts.py` | generates the t95 `board.dts` from p2 (output already in `configs/t95`) |
-| `tools/t95_sys_config.py` | generates the t95 `sys_config.fex` from p2 + the stock T95 `sys_config.fex` |
+| `tools/bl31_t95_patch.py` | creates `bin/bl31_<board>.bin` (`bl31_t95-axp806.bin`, `bl31_t95-axp313.bin`; `pack` picks it by board name) from `bl31.bin`: skips the H618-only "hardware check" (0x1F4C). With `--fakeoff` it also adds the old power-off workaround of b13–b15 (PSCI SYSTEM_OFF, 0x1CF0..0x1D00), not needed since b16 |
+| `tools/t95_board_dts.py` | generates the t95-axp806 `board.dts` from p2 (output already in `configs/t95-axp806`) |
+| `tools/t95_sys_config.py` | generates the t95-axp806 `sys_config.fex` from p2 + the stock T95 `sys_config.fex` |
 | `tools/gen_app_keys.sh` | generates your own app keys (platform/media/shared/networkstack/releasekey) |
 | `tools/t95_bootsound.py` | sets the boot sound volume in `bootanimation.zip` (b19: `-24` dB) |
-| `tools/t95_wallpaper.py` | creates the default system wallpaper (dark gradient, b20+) in the `apollo-t95` overlay (needs Pillow) |
+| `tools/t95_wallpaper.py` | creates the default system wallpaper (dark gradient, b20+) in the `t95-common` overlay (needs Pillow) |
 | `tools/magisk-boot.sh` | root variant: patches `boot.img` of the signed target files with Magisk, re-signs vbmeta with your AVB key; then run `pack -v` |
 | `tools/t95_axp313_board_dts.py`, `tools/t95_axp313_sys_config.py` | generate `board.dts` and `sys_config.fex` of `configs/t95-axp313` from p2 (+ the stock `sys_config.fex` of that board) |
 
@@ -174,20 +191,20 @@ Clone this repository next to the extracted `H618-Android12-Src` folder:
 ```sh
 git clone https://github.com/well83/t95-h616-android12.git
 cd H618-Android12-Src
-cp -a ../t95-h616-android12/longan .                                   # board folder configs/t95
+cp -a ../t95-h616-android12/longan .                         # board folders configs/t95-axp806, t95-axp313
 cp -a device/softwinner/apollo/apollo-p2 device/softwinner/apollo/apollo-t95
 cp    device/softwinner/apollo/apollo_p2.mk device/softwinner/apollo/apollo_t95.mk
 bash ../t95-h616-android12/patches/07-kernel-5.4.302/merge-ack-5.4.302.sh longan/kernel/linux-5.4 ~/k302   # kernel 5.4.302
 rsync -a --delete --exclude=.git ~/k302/linux-5.4/ longan/kernel/linux-5.4/
-for p in 03a 03b 04 05 08 09 10 11; do git apply -p1 ../t95-h616-android12/patches/$p-*.patch; done   # or patch -p1 < ...
+for p in 03a 03b 04 05 08 09 10 11 13 14; do git apply -p1 ../t95-h616-android12/patches/$p-*.patch; done   # 14: git apply only (renames)
 B=device/softwinner/apollo/common/media/bootanimation/bootanimation.zip
 python3 ../t95-h616-android12/tools/t95_bootsound.py $B $B.new -24 && mv $B.new $B   # boot sound -24 dB
-python3 ../t95-h616-android12/tools/t95_wallpaper.py device/softwinner/apollo/apollo-t95/overlay/frameworks/base/core/res/res
+python3 ../t95-h616-android12/tools/t95_wallpaper.py device/softwinner/apollo/t95-common/overlay/frameworks/base/core/res/res
 python3 ../t95-h616-android12/tools/bl31_t95_patch.py longan/device/config/chips/h618/bin/bl31.bin \
-        longan/device/config/chips/h618/bin/bl31_t95.bin
+        longan/device/config/chips/h618/bin/bl31_t95-axp806.bin
 ```
 
-App APKs go in `device/softwinner/apollo/apollo-t95/apps/<Name>/`. Extract the native libraries from
+App APKs go in `device/softwinner/apollo/t95-common/apps/<Name>/`. Extract the native libraries from
 each APK into `apps/<Name>/lib/arm64/`; see `apps/Android.mk`, which also lists the SHA-256 of each APK:
 ArcLauncher (built with patch 12; FLauncher with patch 06 up to b19), MaterialFiles 1.7.5 (F-Droid), CromiteWebView
 153.0.8010.37 (arm64 SystemWebView), SmartTube 32.56 stable, VLC 3.7.2 arm64 (F-Droid build), Downloader 2.0.4 (+ `split_config.*`),
@@ -203,9 +220,9 @@ bash ../t95-h616-android12/tools/gen_app_keys.sh $PWD /a/safe/place
 Build:
 
 ```sh
-cd longan && ./build.sh autoconfig -o android -i h618 -b t95 -n default -k linux-5.4 -a arm64 && ./build.sh && cd ..
-source build/envsetup.sh && lunch apollo_t95-user && make -j10 && pack4dist -v
-# image: longan/out/h618_android12_t95_uart0_secure_v0.img
+cd longan && ./build.sh autoconfig -o android -i h618 -b t95-axp806 -n default -k linux-5.4 -a arm64 && ./build.sh && cd ..
+source build/envsetup.sh && lunch apollo_t95axp806-user && make -j10 && pack4dist -v
+# image: longan/out/h618_android12_t95-axp806_uart0_secure_v0.img
 ```
 
 > [!NOTE]
@@ -213,11 +230,11 @@ source build/envsetup.sh && lunch apollo_t95-user && make -j10 && pack4dist -v
 
 Root variant (after the build above): `bash ../t95-h616-android12/tools/magisk-boot.sh Magisk-v30.7.apk && pack -v`.
 
-AXP313A board: apply also `patches/07-kernel-5.4.302/0004-*.patch` to the kernel, copy the Wi-Fi/BT firmware of
+AXP313A board: apply also `patches/07-kernel-5.4.302/0004-*.patch` and `0005-*.patch` to the kernel, copy the Wi-Fi/BT firmware of
 that board from its stock `/vendor/etc/firmware` (`fw_bcm43342_ag*.bin`, `nvram_ap6334.txt`, `bcm43342a1.hcd`;
 not included, Broadcom license) into `hardware/aw/wireless/partner/ampak/firmware/ap6334/`, create
-`bin/bl31_t95-axp313.bin` with `tools/bl31_t95_patch.py` (as for t95), then build with `-b t95-axp313` and
-`export T95_BOARD=t95-axp313` before `lunch`. Image: `longan/out/h618_android12_t95-axp313_uart0_secure_v0.img`.
+`bin/bl31_t95-axp313.bin` with `tools/bl31_t95_patch.py` (as for t95-axp806), then build with `-b t95-axp313` and
+`lunch apollo_t95axp313-user`. Image: `longan/out/h618_android12_t95-axp313_uart0_secure_v0.img`.
 
 ### Kernel
 
@@ -230,7 +247,9 @@ ACK branch, not a set of patches (`patches/07-kernel-5.4.302/`):
   (250657e3e), resolves 11 conflicts (`resolved/` holds the files after resolution) and applies:
   - 0001: `sun50i-cpufreq-nvmem.c` = the whole AW version (the merged file does not build);
   - 0002: `drivers/mmc/core` = the AW version;
-  - 0003: **fix for the hang after sleep** (see below).
+  - 0003: **fix for the hang after sleep** (see below);
+  - AXP313A board only: 0004 (BCM43342 firmware name) and 0005 (`bcmdhd` parameter `oob_wake`, default 0: the
+    level-triggered Wi-Fi host-wake IRQ fired as soon as s2idle started and kept CPU0 stuck for minutes).
 - The AW tree must be clean (freshly extracted, never built). Apply patch 09 **after** copying the merged
   tree into `longan/kernel/linux-5.4`. When switching between kernel versions, delete
   `longan/out/kernel/{build,staging}` first, otherwise clang crashes on the old config.
@@ -245,7 +264,7 @@ and the system locks up. 0003 restores the reset in `hrtimers_prepare_cpu()`. Th
 affects any android12-5.4 device with kernel ≥ 5.4.290 that suspends with CPU hotplug.
 
 The kernel is adapted to the T95 through the longan board configuration
-(`longan/device/config/chips/h618/configs/t95`):
+(`longan/device/config/chips/h618/configs/t95-axp806`):
 
 - `linux-5.4/board.dts` (generated by `tools/t95_board_dts.py`): AXP806 instead of AXP1530, eMMC DDR52,
   gmac1/AC200 (twi3, PA10/11), LEDs PH6/7, VBUS PH8, USB0 host, IR fe02/0x40, OPP, SD card detect PI16.
@@ -295,8 +314,8 @@ There is no separate SCP, not even in stock firmware: standby runs entirely insi
 T95 boxes exist with other PMICs (for example AXP313A/AXP1530), RAM and Wi-Fi chips. The AXP313A board now has
 its own folder, `configs/t95-axp313` (see [Tested hardware](#tested-hardware)). A revision is described
 by its own board folder, like Orange Pi and Radxa do: `longan/device/config/chips/h618/configs/<board>/` with `sys_config.fex`
-(DRAM, PMIC voltages, GPIOs), `linux-5.4/board.dts` (kernel DT) and `uboot-board.dts`. The Android patches
-stay the same. The Zero 3 folder `p2` already describes an AXP1530/AXP313A, so it is a good starting point
+(DRAM, PMIC voltages, GPIOs), `linux-5.4/board.dts` (kernel DT) and `uboot-board.dts`, plus a small Android
+product (`apollo_t95<name>.mk` and a device folder like `apollo-t95axp806`; everything else is shared in `t95-common`). The Zero 3 folder `p2` already describes an AXP1530/AXP313A, so it is a good starting point
 for those boxes.
 
 To add a revision, open a pull request with a new folder `longan/device/config/chips/h618/configs/t95-<name>/` and, if you can, the stock
@@ -310,7 +329,7 @@ running this firmware. If you build your own image, generate your own keys.
 
 ## Licenses
 
-- The board folders `longan/device/config/chips/h618/configs/t95/` and `t95-axp313/` are derived from the Orange Pi /
+- The board folders `longan/device/config/chips/h618/configs/t95-axp806/` and `t95-axp313/` are derived from the Orange Pi /
   Allwinner BSP configuration (`configs/p2`) and keep the license of those files.
 - Patches to AOSP, the Allwinner BSP and device trees follow the license of the files they modify
   (mostly Apache-2.0; the kernel and the files in `patches/07-kernel-5.4.302/resolved/` are

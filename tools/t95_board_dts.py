@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""board.dts Orange Pi Zero 3 (longan configs/p2/linux-5.4) -> T95 H616 (configs/t95/linux-5.4).
+"""board.dts Orange Pi Zero 3 (longan configs/p2/linux-5.4) -> T95 H616 (configs/t95-axp806/linux-5.4).
 Те же аппаратные исправления, что были проверены на OmniROM (приставка загрузилась 02.10), но в исходниках:
   1. PMIC AXP1530 -> AXP806 (i2c s_twi0 0x36): dcdca CPU DVFS, dcdcc 0.96 В, dcdcd DRAM DDR3 1.5 В, dcdce 3.3 В, bldo1 1.8 В
   2. eMMC sdc2 включена, DDR52 50 МГц (без HS200/HS400), как в стоке; U-Boot: sdc_io_1v8 = 0

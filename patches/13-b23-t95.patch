@@ -1,0 +1,29 @@
+--- a/device/softwinner/apollo/apollo-t95/apps/Android.mk	2026-10-20 11:01:06.563291458 +0200
++++ b/device/softwinner/apollo/apollo-t95/apps/Android.mk	2026-10-20 11:01:06.573091653 +0200
+@@ -22,9 +22,10 @@
+ include $(BUILD_PREBUILT)
+ 
+ # Arc Launcher 1.0.10 (форк LTvLauncher/FLauncher, GPL-3.0), ПЕРЕСОБРАН (патч 12, Flutter 3.41.9, вариант "play" =
+-# без самообновления, REQUEST_INSTALL_PACKAGES нет): единственное изменение — тёмный фон по умолчанию (viciousStance).
+-# Анимация рамки и так выключена по умолчанию (0% CPU), нет потери фокуса с BT-мышью. С b21 вместо FLauncher
+-# (модуль выше оставлен, но не входит в PRODUCT_PACKAGES). Подписывается сборкой системным ключом.
++# без самообновления, REQUEST_INSTALL_PACKAGES нет). Изменения: тёмный фон по умолчанию (viciousStance); с b23
++# (1.0.10-t95.4) нет «Избранного» по умолчанию (главный экран сразу показывает «All Apps») и подсветка фокуса всегда
++# включена (alwaysTraditional: с мышью Logitech M590 она пропадала). Анимация рамки выключена по умолчанию (0% CPU).
++# С b21 вместо FLauncher (модуль выше оставлен, но не входит в PRODUCT_PACKAGES). Подписывается сборкой системным ключом.
+ include $(CLEAR_VARS)
+ LOCAL_MODULE := ArcLauncher
+ LOCAL_MODULE_CLASS := APPS
+--- a/device/softwinner/common/config/awbms_config	2026-10-20 11:01:06.564663638 +0200
++++ b/device/softwinner/common/config/awbms_config	2026-10-20 11:01:06.573121742 +0200
+@@ -4,8 +4,8 @@
+ memoryCheck: true
+ memoryLimit: 450,200
+ memoryTrim: true
+-skipService: true
+-blockBroadcast: true
++skipService: false
++blockBroadcast: false
+ lmk_level: 100,150,250
+ 
+ whitelist:

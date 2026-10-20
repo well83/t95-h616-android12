@@ -2,7 +2,7 @@
 """Системный фон по умолчанию (b20+): тёмный нейтральный градиент 1920x1080 (#1c2430 слева вверху -> #0a0c10 справа
 внизу) вместо логотипа "Orange pi" из BSP (common/overlay/.../default_wallpaper*.png), виден при выходе из приложений.
 Пишет default_wallpaper.png и default_wallpaper_white.png в drawable-nodpi и drawable-sw720dp-nodpi.
-использование: t95_wallpaper.py device/softwinner/apollo/apollo-t95/overlay/frameworks/base/core/res/res   (нужен Pillow)"""
+использование: t95_wallpaper.py device/softwinner/apollo/t95-common/overlay/frameworks/base/core/res/res   (нужен Pillow)"""
 import os, sys
 from PIL import Image
 

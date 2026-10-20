@@ -1,0 +1,95 @@
+From 35b06d20d8db937047e6079495dceb059a1e579c Mon Sep 17 00:00:00 2001
+From: well83 <well83@users.noreply.github.com>
+Date: Tue, 20 Oct 2026 11:30:00 +0200
+Subject: [PATCH] bcmdhd: oob_wake parameter, Wi-Fi host-wake off by default
+ (T95 AXP313A)
+
+On the AXP313A board (BCM43342) the Wi-Fi OOB host-wake IRQ (PG15, level) is a
+wakeup source. As soon as s2idle starts it fires and CPU0 stays stuck in it for
+minutes (rcu_preempt stall), so the box never really sleeps and does not wake
+up from the remote. New parameter /sys/module/bcmdhd/parameters/oob_wake:
+0 (default) = no enable_irq_wake for the OOB IRQ, 1 = old behaviour.
+Tested on the user box (automatic sleep tests, axp313-test10): only the runs
+with oob_wake=0 sleep and wake up by RTC/remote.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ drivers/net/wireless/bcmdhd/bcmsdh_linux.c | 51 ++++++++++++++++++++++++++++++
+ 1 file changed, 51 insertions(+)
+
+diff --git a/drivers/net/wireless/bcmdhd/bcmsdh_linux.c b/drivers/net/wireless/bcmdhd/bcmsdh_linux.c
+index ecbf30366..de5120f5b 100644
+--- a/drivers/net/wireless/bcmdhd/bcmsdh_linux.c
++++ b/drivers/net/wireless/bcmdhd/bcmsdh_linux.c
+@@ -352,6 +352,50 @@ static irqreturn_t wlan_oob_irq(int irq, void *dev_id)
+ 	return IRQ_HANDLED;
+ }
+ 
++/* T95 AXP313A: Wi-Fi OOB host-wake as a system wakeup source, switchable from
++ * /sys/module/bcmdhd/parameters/oob_wake (1 = wakeup source, 0 = Wi-Fi does not wake the system).
++ * Default 0: with it enabled the level IRQ fires as soon as s2idle starts and CPU0 stays stuck in it
++ * for minutes (rcu stall), so the box never really sleeps and does not wake up from the remote.
++ */
++static bcmsdh_os_info_t *t95_oob_osinfo;
++static int t95_oob_wake = 0;
++
++static int t95_oob_wake_apply(void)
++{
++	bcmsdh_os_info_t *osinfo = t95_oob_osinfo;
++	int err = 0;
++
++	if (!osinfo || !osinfo->oob_irq_registered)
++		return 0;
++	if (t95_oob_wake && !osinfo->oob_irq_wake_enabled) {
++		err = enable_irq_wake(osinfo->oob_irq_num);
++		if (!err)
++			osinfo->oob_irq_wake_enabled = TRUE;
++	} else if (!t95_oob_wake && osinfo->oob_irq_wake_enabled) {
++		err = disable_irq_wake(osinfo->oob_irq_num);
++		if (!err)
++			osinfo->oob_irq_wake_enabled = FALSE;
++	}
++	SDLX_MSG(("%s: oob_wake=%d irq=%d err=%d\n", __FUNCTION__, t95_oob_wake,
++		osinfo->oob_irq_num, err));
++	return err;
++}
++
++static int t95_oob_wake_set(const char *val, const struct kernel_param *kp)
++{
++	int err = param_set_int(val, kp);
++
++	if (err)
++		return err;
++	return t95_oob_wake_apply();
++}
++
++static const struct kernel_param_ops t95_oob_wake_ops = {
++	.set = t95_oob_wake_set,
++	.get = param_get_int,
++};
++module_param_cb(oob_wake, &t95_oob_wake_ops, &t95_oob_wake, 0644);
++
+ int bcmsdh_oob_intr_register(bcmsdh_info_t *bcmsdh, bcmsdh_cb_fn_t oob_irq_handler,
+ 	void* oob_irq_handler_context)
+ {
+@@ -391,6 +435,11 @@ int bcmsdh_oob_intr_register(bcmsdh_info_t *bcmsdh, bcmsdh_cb_fn_t oob_irq_handl
+ 	SDLX_MSG(("%s: disable_irq_wake\n", __FUNCTION__));
+ 	bcmsdh_osinfo->oob_irq_wake_enabled = FALSE;
+ #else
++	t95_oob_osinfo = bcmsdh_osinfo;
++	if (!t95_oob_wake) {
++		SDLX_MSG(("%s: oob_wake=0, no enable_irq_wake\n", __FUNCTION__));
++		return 0;
++	}
+ 	err = enable_irq_wake(bcmsdh_osinfo->oob_irq_num);
+ 	if (err)
+ 		SDLX_MSG(("%s: enable_irq_wake failed with %d\n", __FUNCTION__, err));
+@@ -422,6 +471,8 @@ void bcmsdh_oob_intr_unregister(bcmsdh_info_t *bcmsdh)
+ 	}
+ 	free_irq(bcmsdh_osinfo->oob_irq_num, bcmsdh);
+ 	bcmsdh_osinfo->oob_irq_registered = FALSE;
++	if (t95_oob_osinfo == bcmsdh_osinfo)
++		t95_oob_osinfo = NULL;
+ }
+ #endif
+ 

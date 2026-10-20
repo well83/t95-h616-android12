@@ -2,7 +2,7 @@
 +++ b/device/softwinner/apollo/apollo-t95/BoardConfig.mk	2026-10-18 11:15:25.706798128 +0200
 @@ -5,6 +5,11 @@
  # must include common BoardConfig.mk in the end
- # T95: SELinux enforcing (riga AW "androidboot.selinux=permissive" tolta); regole T95 in apollo-t95/sepolicy
+ # T95: SELinux enforcing (строка AW "androidboot.selinux=permissive" убрана); правила T95 в apollo-t95/sepolicy
  BOARD_SEPOLICY_DIRS += $(PRODUCT_PLATFORM_PATH)/apollo-t95/sepolicy
 +# правила сборщика логов t95log (работает только с T95_LOGGER=1, правила есть всегда)
 +SYSTEM_EXT_PRIVATE_SEPOLICY_DIRS += $(PRODUCT_PLATFORM_PATH)/apollo-t95/t95log/sepolicy
