@@ -153,8 +153,8 @@ cannot be erased, so the box can always be recovered.
 
 The official Orange Pi Zero 3 sources, **H618-Android12-Src** (Orange Pi Google Drive, 2023-07-13, archive
 `H618-Android12-Src.tar.gz{aa..ar}`; the md5 from the Orange Pi folder matches).
-In the sources the Zero 3 board is called **p2** (product `apollo_p2`). The repository adds the boards
-**t95-axp806** and **t95-axp313** (longan) and the products **apollo_t95axp806** and **apollo_t95axp313** (Android),
+In the sources the Zero 3 board is called **p2** (product `apollo_p2`). The repository adds the board configurations
+**t95-axp806** and **t95-axp313** (longan folders describing the hardware: device tree, DRAM, PMIC; based on p2) and the products **apollo_t95axp806** and **apollo_t95axp313** (Android),
 which share `device/softwinner/apollo/t95-common`. Build host: Ubuntu 22.04.
 
 **Signing keys are not included.** Generate your own (`tools/gen_app_keys.sh` for the app keys,

@@ -153,7 +153,8 @@ USB) находится в ПЗУ процессора, стереть его н
 
 Официальные исходники Orange Pi Zero 3 **H618-Android12-Src** (Google Drive Orange Pi, 13.07.2023, архив
 `H618-Android12-Src.tar.gz{aa..ar}`, md5 из папки Orange Pi совпадает). Плата Zero 3 в исходниках
-называется **p2** (продукт `apollo_p2`); для T95 сделаны платы **t95-axp806** и **t95-axp313** (longan) и продукты
+называется **p2** (продукт `apollo_p2`); для T95 добавлены конфигурации плат **t95-axp806** и **t95-axp313**
+(папки longan с описанием железа: device tree, DRAM, PMIC; на основе p2) и продукты
 **apollo_t95axp806** и **apollo_t95axp313** (Android) с общей частью `device/softwinner/apollo/t95-common`.
 Хост сборки: Ubuntu 22.04.
 

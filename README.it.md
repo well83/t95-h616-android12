@@ -163,8 +163,8 @@ sempre recuperare.
 
 I sorgenti ufficiali Orange Pi Zero 3 **H618-Android12-Src** (Google Drive di Orange Pi, 13/07/2023,
 archivio `H618-Android12-Src.tar.gz{aa..ar}`; l'md5 della cartella Orange Pi coincide).
-Nei sorgenti la scheda Zero 3 si chiama **p2** (prodotto `apollo_p2`). Il repository aggiunge le schede
-**t95-axp806** e **t95-axp313** (longan) e i prodotti **apollo_t95axp806** e **apollo_t95axp313** (Android), che
+Nei sorgenti la scheda Zero 3 si chiama **p2** (prodotto `apollo_p2`). Il repository aggiunge le configurazioni di scheda
+**t95-axp806** e **t95-axp313** (cartelle longan che descrivono l'hardware: device tree, DRAM, PMIC; basate su p2) e i prodotti **apollo_t95axp806** e **apollo_t95axp313** (Android), che
 condividono `device/softwinner/apollo/t95-common`. Macchina di compilazione: Ubuntu 22.04.
 
 **Le chiavi di firma non sono incluse.** Generane di tue (`tools/gen_app_keys.sh` per le chiavi delle app,
