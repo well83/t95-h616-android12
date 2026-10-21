@@ -71,7 +71,9 @@ o Downloader.
 
 ## Hardware provato
 
-T95, Allwinner H616, 4 GB RAM, PMIC **AXP806**, Wi-Fi/BT **UWE5622**,
+T95, scheda **H616-T95MAX-V4.0**, Allwinner H616, 4 GB RAM (8 × Samsung K4B4G0446B), PMIC **AXP806** (sulla mia
+scheda il chip è marcato **AXP305**: stesso ID 0x60 e stessi registri, gestito come AXP806), Wi-Fi/BT **UWE5622**
+(modulo marcato **AW859A**), controller display FD6551,
 Ethernet AC200 (100 Mbit).
 
 **Funziona:** avvio, HDMI 1080p, Ethernet, Wi-Fi 2,4/5 GHz, Bluetooth (cassa A2DP), decodifica video
@@ -86,7 +88,9 @@ l'interrupt di risveglio del Wi-Fi (host-wake) bloccava la sospensione leggera s
 sistema (kernel `0005`). La versione **NAND** di quella scheda per ora non si flasha (il driver NAND di U-Boot del
 BSP non avvia il chip).
 
-Le due schede si chiamano **T95-AXP806** (questo box) e **T95-AXP313** (`-eMMC` / `-NAND`). Non flashare mai
+Guarda la scritta stampata sulla scheda: **H616-T95MAX-V4.0** (questo box, PMIC AXP806 o AXP305) = file `T95-AXP806-…`,
+**H616-T95MAX-AXP313A-V2.0** con eMMC = file `T95-AXP313-eMMC-…` (la versione NAND per ora non è supportata).
+Nella build le due schede si chiamano **T95-AXP806** e **T95-AXP313** (`-eMMC` / `-NAND`). Non flashare mai
 un'immagine fatta per una scheda sull'altra: il nome del file dice per quale scheda è (`T95-AXP806-…`,
 `T95-AXP313-eMMC-…`; b23 e build di prova: `update.T95-…`; fino alla b22: `t95axp806` / `t95axp313`).
 
@@ -99,7 +103,8 @@ un'immagine fatta per una scheda sull'altra: il nome del file dice per quale sch
 1. **Salva il firmware attuale**, se ce l'hai, oppure trova quello originale della tua revisione.
 2. Servono un cavo USB A-A (maschio-maschio) e PhoenixSuit (Windows) o OpenixSuit (Linux).
 3. Scarica dalle [Releases](../../releases) l'immagine della tua scheda: `T95-AXP806-a12-b24-final-user.img.xz`
-   (release `b24-final`) o `T95-AXP313-eMMC-a12-final-user.img.xz` (release `axp313-final`), oppure il file `-magisk-`
+   (H616-T95MAX-V4.0, release `b24-final`) o `T95-AXP313-eMMC-a12-final-user.img.xz` (H616-T95MAX-AXP313A-V2.0 con eMMC,
+   release `axp313-final`), oppure il file `-magisk-`
    della stessa release con root, e decomprimilo (7-Zip su Windows, `xz -d` su Linux),
    poi seleziona il `.img` e scegli il flash completo (Full Erase).
 4. A box spento tieni premuto il tasto reset (dentro il jack AV), collega l'USB al PC e rilascia il tasto

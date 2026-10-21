@@ -66,7 +66,9 @@ No Google services (GApps). To install apps, use F-Droid, Aurora Store (availabl
 
 ## Tested hardware
 
-T95, Allwinner H616, 4 GB RAM, PMIC **AXP806**, Wi-Fi/BT **UWE5622**,
+T95, board **H616-T95MAX-V4.0**, Allwinner H616, 4 GB RAM (8 × Samsung K4B4G0446B), PMIC **AXP806** (on my
+board the chip is marked **AXP305**: same chip ID 0x60 and registers, handled as AXP806), Wi-Fi/BT **UWE5622**
+(module marked **AW859A**), FD6551 display controller,
 Ethernet AC200 (100 Mbit).
 
 **Works:** boot, HDMI 1080p, Ethernet, Wi-Fi 2.4/5 GHz, Bluetooth (A2DP speaker), hardware video
@@ -80,7 +82,9 @@ pre-releases `axp313-*`), tested by a 4PDA user on the **eMMC** version. Since a
 interrupt blocked light sleep (s2idle), so it is no longer a wakeup source (kernel `0005`). The **NAND** version of
 that board does not flash yet (the U-Boot NAND driver of the BSP does not start the chip).
 
-The two boards are called **T95-AXP806** (this box) and **T95-AXP313** (`-eMMC` / `-NAND`). Never flash an image made
+Look at the name printed on the board: **H616-T95MAX-V4.0** (this box, PMIC AXP806 or AXP305) = files `T95-AXP806-…`,
+**H616-T95MAX-AXP313A-V2.0** with eMMC = files `T95-AXP313-eMMC-…` (the NAND version is not supported yet).
+Internally the two boards are called **T95-AXP806** and **T95-AXP313** (`-eMMC` / `-NAND`). Never flash an image made
 for one board on the other: the file names say which board they are for (`T95-AXP806-…`, `T95-AXP313-eMMC-…`;
 b23 and test builds: `update.T95-…`; up to b22: `t95axp806` / `t95axp313`).
 
@@ -93,7 +97,8 @@ b23 and test builds: `update.T95-…`; up to b22: `t95axp806` / `t95axp313`).
 1. **Back up your current firmware** if you have it, or find the stock firmware for your revision.
 2. You need a USB A-A (male-male) cable and PhoenixSuit (Windows) or OpenixSuit (Linux).
 3. Download from [Releases](../../releases) the image for your board: `T95-AXP806-a12-b24-final-user.img.xz`
-   (release `b24-final`) or `T95-AXP313-eMMC-a12-final-user.img.xz` (release `axp313-final`), or the `-magisk-` file
+   (H616-T95MAX-V4.0, release `b24-final`) or `T95-AXP313-eMMC-a12-final-user.img.xz` (H616-T95MAX-AXP313A-V2.0 with eMMC,
+   release `axp313-final`), or the `-magisk-` file
    of the same release for root, and decompress it (7-Zip on Windows, `xz -d` on Linux),
    then select the `.img` and choose a full flash (Full Erase).
 4. With the box off, hold the reset button (inside the AV jack), connect USB to the PC, and release the
