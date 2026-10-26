@@ -83,14 +83,14 @@ Ethernet AC200 (100 Мбит).
 пробуждения Wi-Fi (host-wake) блокировало лёгкий сон s2idle, теперь оно не будит систему (ядро, `0005`). Версия
 этой платы с **NAND** пока не прошивается (драйвер NAND в U-Boot из BSP не запускает микросхему).
 
-Третья плата, **H61X-T95MAX-AXP313A-V3** (PMIC **AXP313A**, Wi-Fi **XR819**, только 2,4 ГГц, без Bluetooth, eMMC), использует
+Третья плата, **H61X-T95MAX-AXP313A-V3.0** (PMIC **AXP313A**, Wi-Fi **XR819**, только 2,4 ГГц, без Bluetooth, eMMC), использует
 ту же папку и тот же продукт, что плата AXP313A, с тремя изменениями дерева устройств (`tools/t95_axp313_xr819_dts.sh`):
 банк PG (SDIO Wi-Fi) на 3,3 В, как в стоковой X29, `sdc1` без режимов UHS, `device_type = "btlpm"` для `wireless_switch.ko`.
 Её **релиз** — `axp313-xr819-final` (раньше тестовые pre-release `axp313-xr819-test*`), проверил пользователь 4PDA (Wi-Fi и LAN).
 
 Смотрите надпись на плате: **H616-T95MAX-V4.0** (эта приставка, PMIC AXP806 или AXP305) = файлы `T95-AXP806-…`,
 **H616-T95MAX-AXP313A-V2.0** с eMMC = файлы `T95-AXP313-eMMC-…` (версия с NAND пока не поддерживается),
-**H61X-T95MAX-AXP313A-V3** (Wi-Fi XR819) = файлы `T95-AXP313-eMMC-a12-xr819-final-…`.
+**H61X-T95MAX-AXP313A-V3.0** (Wi-Fi XR819) = файлы `T95-AXP313-eMMC-a12-xr819-final-…`.
 Внутри сборки платы называются **T95-AXP806** и **T95-AXP313** (`-eMMC` / `-NAND`). Не прошивайте образ для одной
 платы на другую: в имени файла указано, для какой он платы (`T95-AXP806-…`, `T95-AXP313-eMMC-…`;
 b23 и тестовые сборки: `update.T95-…`; до b22: `t95axp806` / `t95axp313`).
@@ -105,7 +105,7 @@ b23 и тестовые сборки: `update.T95-…`; до b22: `t95axp806` / 
 2. Нужен кабель USB A-A (папа-папа) и PhoenixSuit (Windows) или OpenixSuit (Linux).
 3. Скачайте из [Releases](../../releases) образ для своей платы: `T95-AXP806-a12-b24-final-user.img.xz`
    (H616-T95MAX-V4.0, релиз `b24-final`) или `T95-AXP313-eMMC-a12-final-user.img.xz` (H616-T95MAX-AXP313A-V2.0 с eMMC,
-   релиз `axp313-final`) или `T95-AXP313-eMMC-a12-xr819-final-user.img.xz` (H61X-T95MAX-AXP313A-V3, релиз
+   релиз `axp313-final`) или `T95-AXP313-eMMC-a12-xr819-final-user.img.xz` (H61X-T95MAX-AXP313A-V3.0, релиз
    `axp313-xr819-final`), для root — файл `-magisk-`
    того же релиза, и распакуйте (7-Zip в Windows, `xz -d` в Linux), затем
    выберите `.img`, режим полной прошивки (Full Erase).
@@ -196,7 +196,7 @@ USB) находится в ПЗУ процессора, стереть его н
 | `tools/t95_wallpaper.py` | создаёт системный фон по умолчанию (тёмный градиент, b20+) в overlay `t95-common` (нужен Pillow) |
 | `tools/magisk-boot.sh` | вариант с root: патчит Magisk-ом `boot.img` из signed target files, переподписывает vbmeta своим ключом AVB; затем `pack -v` |
 | `tools/t95_axp313_board_dts.py`, `tools/t95_axp313_sys_config.py` | создают `board.dts` и `sys_config.fex` для `configs/t95-axp313` из p2 (+ стоковый `sys_config.fex` этой платы) |
-| `tools/t95_axp313_xr819_dts.sh` | вариант H61X-T95MAX-AXP313A-V3 (Wi-Fi XR819) для `configs/t95-axp313`: банк PG на 3,3 В, `sdc1` без UHS, `device_type = "btlpm"` (нужен `wireless_switch.ko`) |
+| `tools/t95_axp313_xr819_dts.sh` | вариант H61X-T95MAX-AXP313A-V3.0 (Wi-Fi XR819) для `configs/t95-axp313`: банк PG на 3,3 В, `sdc1` без UHS, `device_type = "btlpm"` (нужен `wireless_switch.ko`) |
 
 ### Порядок
 
@@ -248,7 +248,7 @@ Wi-Fi/BT этой платы из её стокового `/vendor/etc/firmware`
 `bcm43342a1.hcd`; не включены, лицензия Broadcom) в `hardware/aw/wireless/partner/ampak/firmware/ap6334/`,
 создайте `bin/bl31_t95-axp313.bin` через `tools/bl31_t95_patch.py` (как для t95-axp806), затем собирайте с
 `-b t95-axp313` и `lunch apollo_t95axp313-user`. Образ: `longan/out/h618_android12_t95-axp313_uart0_secure_v0.img`.
-Для H61X-T95MAX-AXP313A-V3 (XR819) перед этой сборкой запустите `tools/t95_axp313_xr819_dts.sh` для `configs/t95-axp313`
+Для H61X-T95MAX-AXP313A-V3.0 (XR819) перед этой сборкой запустите `tools/t95_axp313_xr819_dts.sh` для `configs/t95-axp313`
 (сохраните копию двух `board.dts` и верните их после сборки).
 
 ### Ядро

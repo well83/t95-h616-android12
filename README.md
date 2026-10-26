@@ -82,14 +82,14 @@ pre-releases `axp313-*`), tested by a 4PDA user on the **eMMC** version. Since a
 interrupt blocked light sleep (s2idle), so it is no longer a wakeup source (kernel `0005`). The **NAND** version of
 that board does not flash yet (the U-Boot NAND driver of the BSP does not start the chip).
 
-A third board, **H61X-T95MAX-AXP313A-V3** (PMIC **AXP313A**, Wi-Fi **XR819**, 2.4 GHz only, no Bluetooth, eMMC), uses the same
+A third board, **H61X-T95MAX-AXP313A-V3.0** (PMIC **AXP313A**, Wi-Fi **XR819**, 2.4 GHz only, no Bluetooth, eMMC), uses the same
 folder and product as the AXP313A board with three device-tree changes (`tools/t95_axp313_xr819_dts.sh`): Wi-Fi SDIO bank PG
 at 3.3 V as in the stock X29 firmware, `sdc1` without UHS modes, `device_type = "btlpm"` for `wireless_switch.ko`. Its own
 **release** is `axp313-xr819-final` (before: test pre-releases `axp313-xr819-test*`), tested by a 4PDA user (Wi-Fi and LAN).
 
 Look at the name printed on the board: **H616-T95MAX-V4.0** (this box, PMIC AXP806 or AXP305) = files `T95-AXP806-…`,
 **H616-T95MAX-AXP313A-V2.0** with eMMC = files `T95-AXP313-eMMC-…` (the NAND version is not supported yet),
-**H61X-T95MAX-AXP313A-V3** (Wi-Fi XR819) = files `T95-AXP313-eMMC-a12-xr819-final-…`.
+**H61X-T95MAX-AXP313A-V3.0** (Wi-Fi XR819) = files `T95-AXP313-eMMC-a12-xr819-final-…`.
 Internally the two boards are called **T95-AXP806** and **T95-AXP313** (`-eMMC` / `-NAND`). Never flash an image made
 for one board on the other: the file names say which board they are for (`T95-AXP806-…`, `T95-AXP313-eMMC-…`;
 b23 and test builds: `update.T95-…`; up to b22: `t95axp806` / `t95axp313`).
@@ -104,7 +104,7 @@ b23 and test builds: `update.T95-…`; up to b22: `t95axp806` / `t95axp313`).
 2. You need a USB A-A (male-male) cable and PhoenixSuit (Windows) or OpenixSuit (Linux).
 3. Download from [Releases](../../releases) the image for your board: `T95-AXP806-a12-b24-final-user.img.xz`
    (H616-T95MAX-V4.0, release `b24-final`) or `T95-AXP313-eMMC-a12-final-user.img.xz` (H616-T95MAX-AXP313A-V2.0 with eMMC,
-   release `axp313-final`) or `T95-AXP313-eMMC-a12-xr819-final-user.img.xz` (H61X-T95MAX-AXP313A-V3, release
+   release `axp313-final`) or `T95-AXP313-eMMC-a12-xr819-final-user.img.xz` (H61X-T95MAX-AXP313A-V3.0, release
    `axp313-xr819-final`), or the `-magisk-` file
    of the same release for root, and decompress it (7-Zip on Windows, `xz -d` on Linux),
    then select the `.img` and choose a full flash (Full Erase).
@@ -195,7 +195,7 @@ which share `device/softwinner/apollo/t95-common`. Build host: Ubuntu 22.04.
 | `tools/t95_wallpaper.py` | creates the default system wallpaper (dark gradient, b20+) in the `t95-common` overlay (needs Pillow) |
 | `tools/magisk-boot.sh` | root variant: patches `boot.img` of the signed target files with Magisk, re-signs vbmeta with your AVB key; then run `pack -v` |
 | `tools/t95_axp313_board_dts.py`, `tools/t95_axp313_sys_config.py` | generate `board.dts` and `sys_config.fex` of `configs/t95-axp313` from p2 (+ the stock `sys_config.fex` of that board) |
-| `tools/t95_axp313_xr819_dts.sh` | H61X-T95MAX-AXP313A-V3 variant (Wi-Fi XR819) of `configs/t95-axp313`: bank PG at 3.3 V, `sdc1` without UHS, `device_type = "btlpm"` (needed by `wireless_switch.ko`) |
+| `tools/t95_axp313_xr819_dts.sh` | H61X-T95MAX-AXP313A-V3.0 variant (Wi-Fi XR819) of `configs/t95-axp313`: bank PG at 3.3 V, `sdc1` without UHS, `device_type = "btlpm"` (needed by `wireless_switch.ko`) |
 
 Comments inside the patches and tools are in Russian (the project was first published on 4PDA).
 
@@ -250,7 +250,7 @@ that board from its stock `/vendor/etc/firmware` (`fw_bcm43342_ag*.bin`, `nvram_
 not included, Broadcom license) into `hardware/aw/wireless/partner/ampak/firmware/ap6334/`, create
 `bin/bl31_t95-axp313.bin` with `tools/bl31_t95_patch.py` (as for t95-axp806), then build with `-b t95-axp313` and
 `lunch apollo_t95axp313-user`. Image: `longan/out/h618_android12_t95-axp313_uart0_secure_v0.img`.
-For H61X-T95MAX-AXP313A-V3 (XR819) run `tools/t95_axp313_xr819_dts.sh` on `configs/t95-axp313` before that build
+For H61X-T95MAX-AXP313A-V3.0 (XR819) run `tools/t95_axp313_xr819_dts.sh` on `configs/t95-axp313` before that build
 (keep a copy of the two `board.dts` and restore them afterwards).
 
 ### Kernel
