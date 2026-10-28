@@ -87,9 +87,14 @@ folder and product as the AXP313A board with three device-tree changes (`tools/t
 at 3.3 V as in the stock X29 firmware, `sdc1` without UHS modes, `device_type = "btlpm"` for `wireless_switch.ko`. Its own
 **release** is `axp313-xr819-final` (before: test pre-releases `axp313-xr819-test*`), tested by a 4PDA user (Wi-Fi and LAN).
 
+The same three changes on `configs/t95-axp806` give **b24-xr819**: a **test pre-release** for the **H616-T95MAX-V4.0**
+(PMIC AXP806/AXP305) fitted with an **XR819** chip instead of the UWE5622 module (2.4 GHz only, no Bluetooth). Otherwise
+identical to `b24-final`; not tested yet.
+
 Look at the name printed on the board: **H616-T95MAX-V4.0** (this box, PMIC AXP806 or AXP305) = files `T95-AXP806-…`,
 **H616-T95MAX-AXP313A-V2.0** with eMMC = files `T95-AXP313-eMMC-…` (the NAND version is not supported yet),
-**H61X-T95MAX-AXP313A-V3.0** (Wi-Fi XR819) = files `T95-AXP313-eMMC-a12-xr819-final-…`.
+**H61X-T95MAX-AXP313A-V3.0** (Wi-Fi XR819) = files `T95-AXP313-eMMC-a12-xr819-final-…`,
+**H616-T95MAX-V4.0** with Wi-Fi XR819 instead of UWE5622 = test files `T95-AXP806-a12-b24-xr819-…`.
 Internally the two boards are called **T95-AXP806** and **T95-AXP313** (`-eMMC` / `-NAND`). Never flash an image made
 for one board on the other: the file names say which board they are for (`T95-AXP806-…`, `T95-AXP313-eMMC-…`;
 b23 and test builds: `update.T95-…`; up to b22: `t95axp806` / `t95axp313`).
@@ -195,7 +200,7 @@ which share `device/softwinner/apollo/t95-common`. Build host: Ubuntu 22.04.
 | `tools/t95_wallpaper.py` | creates the default system wallpaper (dark gradient, b20+) in the `t95-common` overlay (needs Pillow) |
 | `tools/magisk-boot.sh` | root variant: patches `boot.img` of the signed target files with Magisk, re-signs vbmeta with your AVB key; then run `pack -v` |
 | `tools/t95_axp313_board_dts.py`, `tools/t95_axp313_sys_config.py` | generate `board.dts` and `sys_config.fex` of `configs/t95-axp313` from p2 (+ the stock `sys_config.fex` of that board) |
-| `tools/t95_axp313_xr819_dts.sh` | H61X-T95MAX-AXP313A-V3.0 variant (Wi-Fi XR819) of `configs/t95-axp313`: bank PG at 3.3 V, `sdc1` without UHS, `device_type = "btlpm"` (needed by `wireless_switch.ko`) |
+| `tools/t95_axp313_xr819_dts.sh` | Wi-Fi XR819 variant of a board folder (`configs/t95-axp313` for H61X-T95MAX-AXP313A-V3.0, `configs/t95-axp806` for b24-xr819): bank PG at 3.3 V, `sdc1` without UHS, `device_type = "btlpm"` (needed by `wireless_switch.ko`) |
 
 Comments inside the patches and tools are in Russian (the project was first published on 4PDA).
 
@@ -252,6 +257,7 @@ not included, Broadcom license) into `hardware/aw/wireless/partner/ampak/firmwar
 `lunch apollo_t95axp313-user`. Image: `longan/out/h618_android12_t95-axp313_uart0_secure_v0.img`.
 For H61X-T95MAX-AXP313A-V3.0 (XR819) run `tools/t95_axp313_xr819_dts.sh` on `configs/t95-axp313` before that build
 (keep a copy of the two `board.dts` and restore them afterwards).
+For H616-T95MAX-V4.0 with XR819 (b24-xr819) run the same script on `configs/t95-axp806` before the t95-axp806 build.
 
 ### Kernel
 

@@ -94,9 +94,14 @@ banco PG dell'SDIO Wi-Fi a 3,3 V come nel firmware stock X29, `sdc1` senza modal
 `wireless_switch.ko`. La sua **release** è `axp313-xr819-final` (prima pre-release di prova `axp313-xr819-test*`), provata da
 un utente 4PDA (Wi-Fi e LAN).
 
+Le stesse tre modifiche su `configs/t95-axp806` danno **b24-xr819**: una **pre-release di prova** per la **H616-T95MAX-V4.0**
+(PMIC AXP806/AXP305) montata con il chip **XR819** al posto del modulo UWE5622 (solo 2,4 GHz, niente Bluetooth). Per il resto
+identica a `b24-final`; non ancora provata.
+
 Guarda la scritta stampata sulla scheda: **H616-T95MAX-V4.0** (questo box, PMIC AXP806 o AXP305) = file `T95-AXP806-…`,
 **H616-T95MAX-AXP313A-V2.0** con eMMC = file `T95-AXP313-eMMC-…` (la versione NAND per ora non è supportata),
-**H61X-T95MAX-AXP313A-V3.0** (Wi-Fi XR819) = file `T95-AXP313-eMMC-a12-xr819-final-…`.
+**H61X-T95MAX-AXP313A-V3.0** (Wi-Fi XR819) = file `T95-AXP313-eMMC-a12-xr819-final-…`,
+**H616-T95MAX-V4.0** con Wi-Fi XR819 al posto di UWE5622 = file di prova `T95-AXP806-a12-b24-xr819-…`.
 Nella build le due schede si chiamano **T95-AXP806** e **T95-AXP313** (`-eMMC` / `-NAND`). Non flashare mai
 un'immagine fatta per una scheda sull'altra: il nome del file dice per quale scheda è (`T95-AXP806-…`,
 `T95-AXP313-eMMC-…`; b23 e build di prova: `update.T95-…`; fino alla b22: `t95axp806` / `t95axp313`).
@@ -206,7 +211,7 @@ condividono `device/softwinner/apollo/t95-common`. Macchina di compilazione: Ubu
 | `tools/t95_wallpaper.py` | crea lo sfondo di sistema di default (gradiente scuro, b20+) nell'overlay `t95-common` (serve Pillow) |
 | `tools/magisk-boot.sh` | variante root: patcha con Magisk il `boot.img` dei signed target files e rifirma vbmeta con la tua chiave AVB; poi `pack -v` |
 | `tools/t95_axp313_board_dts.py`, `tools/t95_axp313_sys_config.py` | generano `board.dts` e `sys_config.fex` di `configs/t95-axp313` da p2 (+ il `sys_config.fex` stock di quella scheda) |
-| `tools/t95_axp313_xr819_dts.sh` | variante H61X-T95MAX-AXP313A-V3.0 (Wi-Fi XR819) di `configs/t95-axp313`: banco PG a 3,3 V, `sdc1` senza UHS, `device_type = "btlpm"` (serve a `wireless_switch.ko`) |
+| `tools/t95_axp313_xr819_dts.sh` | variante Wi-Fi XR819 di una cartella scheda (`configs/t95-axp313` per H61X-T95MAX-AXP313A-V3.0, `configs/t95-axp806` per b24-xr819): banco PG a 3,3 V, `sdc1` senza UHS, `device_type = "btlpm"` (serve a `wireless_switch.ko`) |
 
 I commenti dentro patch e strumenti sono in russo (il progetto è stato pubblicato prima su 4PDA).
 
@@ -263,6 +268,7 @@ non inclusi, licenza Broadcom) in `hardware/aw/wireless/partner/ampak/firmware/a
 `lunch apollo_t95axp313-user`. Immagine: `longan/out/h618_android12_t95-axp313_uart0_secure_v0.img`.
 Per H61X-T95MAX-AXP313A-V3.0 (XR819) esegui `tools/t95_axp313_xr819_dts.sh` su `configs/t95-axp313` prima di quella build
 (tieni una copia dei due `board.dts` e rimettili dopo).
+Per H616-T95MAX-V4.0 con XR819 (b24-xr819) esegui lo stesso script su `configs/t95-axp806` prima della build t95-axp806.
 
 ### Kernel
 

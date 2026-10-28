@@ -88,9 +88,14 @@ Ethernet AC200 (100 Мбит).
 банк PG (SDIO Wi-Fi) на 3,3 В, как в стоковой прошивке X29, `sdc1` без режимов UHS, `device_type = "btlpm"` для `wireless_switch.ko`.
 Её **релиз** — `axp313-xr819-final` (раньше тестовые pre-release `axp313-xr819-test*`), проверил пользователь 4PDA (Wi-Fi и LAN).
 
+Те же три изменения для `configs/t95-axp806` дают **b24-xr819**: **тестовый pre-release** для **H616-T95MAX-V4.0**
+(PMIC AXP806/AXP305) с микросхемой **XR819** вместо модуля UWE5622 (только 2,4 ГГц, без Bluetooth). В остальном
+то же, что `b24-final`; пока не проверена.
+
 Смотрите надпись на плате: **H616-T95MAX-V4.0** (эта приставка, PMIC AXP806 или AXP305) = файлы `T95-AXP806-…`,
 **H616-T95MAX-AXP313A-V2.0** с eMMC = файлы `T95-AXP313-eMMC-…` (версия с NAND пока не поддерживается),
-**H61X-T95MAX-AXP313A-V3.0** (Wi-Fi XR819) = файлы `T95-AXP313-eMMC-a12-xr819-final-…`.
+**H61X-T95MAX-AXP313A-V3.0** (Wi-Fi XR819) = файлы `T95-AXP313-eMMC-a12-xr819-final-…`,
+**H616-T95MAX-V4.0** с Wi-Fi XR819 вместо UWE5622 = тестовые файлы `T95-AXP806-a12-b24-xr819-…`.
 Внутри сборки эти платы называются **T95-AXP806** и **T95-AXP313** (`-eMMC` / `-NAND`). Не прошивайте образ для одной
 платы на другую: в имени файла указано, для какой он платы (`T95-AXP806-…`, `T95-AXP313-eMMC-…`;
 b23 и тестовые сборки: `update.T95-…`; до b22: `t95axp806` / `t95axp313`).
@@ -196,7 +201,7 @@ USB) находится в ПЗУ процессора, стереть его н
 | `tools/t95_wallpaper.py` | создаёт системный фон по умолчанию (тёмный градиент, b20+) в overlay `t95-common` (нужен Pillow) |
 | `tools/magisk-boot.sh` | вариант с root: патчит Magisk-ом `boot.img` из signed target files, переподписывает vbmeta своим ключом AVB; затем `pack -v` |
 | `tools/t95_axp313_board_dts.py`, `tools/t95_axp313_sys_config.py` | создают `board.dts` и `sys_config.fex` для `configs/t95-axp313` из p2 (+ стоковый `sys_config.fex` этой платы) |
-| `tools/t95_axp313_xr819_dts.sh` | вариант H61X-T95MAX-AXP313A-V3.0 (Wi-Fi XR819) для `configs/t95-axp313`: банк PG на 3,3 В, `sdc1` без UHS, `device_type = "btlpm"` (нужен `wireless_switch.ko`) |
+| `tools/t95_axp313_xr819_dts.sh` | вариант с Wi-Fi XR819 для папки платы (`configs/t95-axp313` для H61X-T95MAX-AXP313A-V3.0, `configs/t95-axp806` для b24-xr819): банк PG на 3,3 В, `sdc1` без UHS, `device_type = "btlpm"` (нужен `wireless_switch.ko`) |
 
 ### Порядок сборки
 
@@ -252,6 +257,7 @@ Wi-Fi/BT этой платы из её стокового `/vendor/etc/firmware`
 `-b t95-axp313` и `lunch apollo_t95axp313-user`. Образ: `longan/out/h618_android12_t95-axp313_uart0_secure_v0.img`.
 Для H61X-T95MAX-AXP313A-V3.0 (XR819) перед этой сборкой запустите `tools/t95_axp313_xr819_dts.sh` для `configs/t95-axp313`
 (сохраните копию двух `board.dts` и верните их после сборки).
+Для H616-T95MAX-V4.0 с XR819 (b24-xr819) запустите тот же скрипт для `configs/t95-axp806` перед сборкой t95-axp806.
 
 ### Ядро
 
