@@ -211,7 +211,8 @@
 /* for mmc */
 &pio {
 
-	vcc-pg-supply = <&reg_pio1_8>;
+	/* T95: режим напряжения банка PG (Wi-Fi SDIO) по PIO_POW_VAL: 1,8 В UWE5622, 3,3 В XR819 (b25, патч ядра 0006) */
+	allwinner,auto-power-mode = <0x40>;
 
 	uart0_ph_pins: uart0-ph-pins {
 		pins = "PH0", "PH1";
@@ -938,6 +939,7 @@
 };
 
 &btlpm {
+	device_type = "btlpm"; /* T95: нужно для wireless_switch.ko (XR819) */
 	compatible = "allwinner,sunxi-btlpm";
 	uart_index = <0x1>;
 	bt_wake = <&pio PG 17 GPIO_ACTIVE_HIGH>;

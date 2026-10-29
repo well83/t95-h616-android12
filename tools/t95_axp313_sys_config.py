@@ -5,7 +5,8 @@
     выбирается по GPIO PI1/PI9/PI13), twi_para, gpio_bias (банк PC на 1.8 В, как в стоке), axp1530_power_sply
     (+ dcdc1 0.96 В)
   - от Zero3 всё остальное (PMIC тот же), с: [target] burn_secure_mode = 1 и [platform] secure_without_OS = 0
-    (SoC T95 с прожжённым secure boot); [card2_boot_para] sdc_io_1v8 = 1 как у Zero3 и в стоке
+    (SoC T95 с прожжённым secure boot); [card2_boot_para] sdc_io_1v8 = 0 и [gpio_bias] pc_bias = 3300 как в iconBIT A32
+    (eMMC 3,3 В, U-Boot без HS200/HS400: с 1,8 В прошивка на части плат падает с fed_nand)
   - nand0_used = 0 и storage_type = -1 как в стоке: U-Boot сам ищет NAND
 использование: t95_axp313_sys_config.py p2/sys_config.fex stock_sys_config.fex t95-axp313/sys_config.fex"""
 import re, sys
@@ -52,5 +53,7 @@ def set_key(sec, key, val):
 set_key('platform', 'secure_without_OS', '0')
 set_key('target', 'burn_secure_mode', '1')
 set_key('power_sply', 'dcdc1_vol', '1000960')
+set_key('card2_boot_para', 'sdc_io_1v8', '0')
+set_key('gpio_bias', 'pc_bias', '3300')
 open(dst, 'w', encoding='latin-1').write(d)
 print('ok', dst)

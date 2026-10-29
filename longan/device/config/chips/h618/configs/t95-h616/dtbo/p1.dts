@@ -1,0 +1,183 @@
+/*
+ * T95 H616 единая плата: overlay для PMIC AXP806/AXP305 (H616-T95MAX-V4.0), как dtbo в iconBIT A32.
+ * Базовый DT (configs/t95-h616/board.dts) описывает AXP1530 (AXP313A); U-Boot применяет этот dtbo (item "dtbo"
+ * в boot_package), если найденный PMIC не совпадает с pmu0, к DT U-Boot и (патч T95) к DT ядра.
+ * Регуляторы = configs/t95-axp806/board.dts (напряжения измерены на стоке); потребители ссылаются на регуляторы AXP806,
+ * как в DT приставки: узлы AXP1530 базового DT остаются, но без драйвера.
+ */
+/dts-v1/;
+/plugin/;
+/ {
+	/* As DTS design, these properties only for loader, won't overlay */
+	compatible = "board_manufacturer,board_model";
+
+	/* These properties are examples */
+	board_id = <0x00020000>;
+	board_rev = <0x00020001>;
+	another_hw_information = "some_data";
+	soc_id = <0x68000000>;
+
+	fragment@1 {
+		target = <&twi5>;
+		__overlay__ {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			no_suspend = <1>;
+			status = "okay";
+
+			pmu{
+				compatible = "x-powers,axp806";
+				reg = <0x36>;
+				pmu_hot_shutdown = <0>;
+
+				standby_param {
+					vcc-dram = <0x8>;
+				};
+
+				regulators{
+					reg806_dcdca: dcdca {
+						regulator-name = "axp806-dcdca";
+						regulator-min-microvolt = <810000>;
+						regulator-max-microvolt = <1160000>;
+						regulator-ramp-delay = <200>;
+						regulator-always-on;
+					};
+
+					dcdcb {
+						regulator-name = "axp806-dcdcb";
+					};
+
+					reg806_dcdcc: dcdcc {
+						regulator-name = "axp806-dcdcc";
+						regulator-min-microvolt = <960000>;
+						regulator-max-microvolt = <960000>;
+						regulator-always-on;
+					};
+
+					dcdcd {
+						regulator-name = "axp806-dcdcd";
+						regulator-min-microvolt = <1500000>;
+						regulator-max-microvolt = <1500000>;
+						regulator-always-on;
+					};
+
+					reg806_dcdce: dcdce {
+						regulator-name = "axp806-dcdce";
+						regulator-min-microvolt = <3300000>;
+						regulator-max-microvolt = <3300000>;
+						regulator-always-on;
+					};
+
+					aldo1 {
+						regulator-name = "axp806-aldo1";
+						regulator-min-microvolt = <3300000>;
+						regulator-max-microvolt = <3300000>;
+						regulator-always-on;
+					};
+
+					aldo2 {
+						regulator-name = "axp806-aldo2";
+						regulator-min-microvolt = <3300000>;
+						regulator-max-microvolt = <3300000>;
+						regulator-always-on;
+					};
+
+					aldo3 {
+						regulator-name = "axp806-aldo3";
+						regulator-min-microvolt = <3300000>;
+						regulator-max-microvolt = <3300000>;
+						regulator-always-on;
+					};
+
+					reg806_bldo1: bldo1 {
+						regulator-name = "axp806-bldo1";
+						regulator-min-microvolt = <1800000>;
+						regulator-max-microvolt = <1800000>;
+						regulator-always-on;
+					};
+
+					bldo2 {
+						regulator-name = "axp806-bldo2";
+					};
+
+					bldo3 {
+						regulator-name = "axp806-bldo3";
+					};
+
+					bldo4 {
+						regulator-name = "axp806-bldo4";
+					};
+
+					cldo1 {
+						regulator-name = "axp806-cldo1";
+					};
+
+					cldo2 {
+						regulator-name = "axp806-cldo2";
+					};
+
+					cldo3 {
+						regulator-name = "axp806-cldo3";
+					};
+
+					sw {
+						regulator-name = "axp806-sw";
+					};
+				};
+			};
+		};
+	};
+
+	fragment@2 {
+		target = <&cpu0>;
+		__overlay__ {
+			cpu-supply = <&reg806_dcdca>;
+		};
+	};
+
+	fragment@3 {
+		target = <&sdc2>;
+		__overlay__ {
+			vmmc-supply = <&reg806_dcdce>;
+			vqmmc-supply = <&reg806_bldo1>;
+		};
+	};
+
+	fragment@4 {
+		target = <&sdc0>;
+		__overlay__ {
+			vmmc-supply = <&reg806_dcdce>;
+		};
+	};
+
+	fragment@5 {
+		target = <&sdc1>;
+		__overlay__ {
+			vqmmc-supply = <&reg806_bldo1>;
+		};
+	};
+
+	fragment@6 {
+		target = <&nand0>;
+		__overlay__ {
+			nand0_regulator1-supply = <&reg806_dcdce>;
+			nand0_regulator2-supply = <&reg806_bldo1>;
+		};
+	};
+
+	fragment@7 {
+		target = <&hdmi>;
+		__overlay__ {
+			aldo1-supply = <&reg806_bldo1>;
+			dcdc1-supply = <&reg806_dcdcc>;
+		};
+	};
+
+	/* ro.boot.t95_pmic для Android (базовый DT: "axp1530") */
+	fragment@8 {
+		target-path = "/firmware/android";
+		__overlay__ {
+			t95_pmic = "axp806";
+		};
+	};
+};

@@ -1,0 +1,55 @@
+diff --git a/android/app/src/main/res/xml/screensaver.xml b/android/app/src/main/res/xml/screensaver.xml
+index 6b5b730..5a03c46 100644
+--- a/android/app/src/main/res/xml/screensaver.xml
++++ b/android/app/src/main/res/xml/screensaver.xml
+@@ -1,3 +1,3 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <dream xmlns:android="http://schemas.android.com/apk/res/android"
+-    android:settingsActivity="me.efesser.flauncher/.MainActivity" />
++    android:settingsActivity="com.omeda.arc/.MainActivity" />
+diff --git a/lib/main.dart b/lib/main.dart
+index 7a2992e..376d7ee 100644
+--- a/lib/main.dart
++++ b/lib/main.dart
+@@ -36,6 +36,10 @@ import 'flauncher_app.dart';
+ 
+ Future<void> main() async {
+   WidgetsFlutterBinding.ensureInitialized();
++  // T95: always show the focus highlight. Some air mice are reported as touch devices and their
++  // continuous small movements switch Flutter to touch mode right after each remote key press,
++  // so the selected card is never highlighted while the mouse is connected.
++  FocusManager.instance.highlightStrategy = FocusHighlightStrategy.alwaysTraditional;
+   initializeDateFormatting();
+ 
+   final sharedPreferences = await SharedPreferences.getInstance();
+diff --git a/lib/providers/apps_service.dart b/lib/providers/apps_service.dart
+index 9f5be1f..6fc88e9 100644
+--- a/lib/providers/apps_service.dart
++++ b/lib/providers/apps_service.dart
+@@ -232,10 +232,9 @@ class AppsService extends ChangeNotifier
+ 
+   Future<void> _initDefaultCategories() {
+     final allApps = _applications.values.where((application) => !application.hidden);
+-    final defaultFavoriteLauncherPackageNames = [
+-      'com.omeda.arc',
+-      'com.omeda.arc.debug',
+-    ];
++    // T95: no default favorites, so the home starts with "All Apps" visible instead of an empty
++    // wallpaper area with Arc alone in the dock (the dock appears when the user adds favorites)
++    final List<String> defaultFavoriteLauncherPackageNames = [];
+ 
+     return _database.transaction(() async {
+       if (allApps.isNotEmpty) {
+diff --git a/lib/providers/wallpaper_service.dart b/lib/providers/wallpaper_service.dart
+index d4e47fa..c5cc228 100644
+--- a/lib/providers/wallpaper_service.dart
++++ b/lib/providers/wallpaper_service.dart
+@@ -88,7 +88,7 @@ class WallpaperService extends ChangeNotifier {
+ 
+   FLauncherGradient get gradient => FLauncherGradients.all.firstWhere(
+     (gradient) => gradient.uuid == _settingsService.gradientUuid,
+-    orElse: () => FLauncherGradients.saintPetersburg,
++    orElse: () => FLauncherGradients.viciousStance,
+   );
+ 
+   WallpaperService(this._settingsService) : _wallpaper = null {

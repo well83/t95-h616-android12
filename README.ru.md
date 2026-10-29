@@ -25,11 +25,11 @@ Orange Pi Zero 3 (`H618-Android12-Src`, BSP Allwinner) и портированн
   бинарники Allwinner (GPU, видео, Wi-Fi) обновить нельзя
 - Все системные приложения и secure boot (toc0/toc1/vbmeta) подписаны **моими собственными ключами**
   (вместо публичных ключей SDK Allwinner, которыми может подписать кто угодно)
-- Лаунчер **Arc Launcher** 1.0.10 (с b21; GPL-форк LTvLauncher/FLauncher), пересобран без самообновления и с тёмным
+- Лаунчер **Arc Launcher** 1.2.0 (с b25; 1.0.10 с b21 по b24; GPL-форк LTvLauncher/FLauncher), пересобран без самообновления и с тёмным
   фоном по умолчанию: 0% CPU в покое, фокус пульта не теряется, если BT-мышь подключается во время загрузки. С b23
   главный экран сразу открывается со списком «All Apps» (нет «Избранного» по умолчанию, из-за которого приложения
   уходили за нижний край экрана), и рамка фокуса рисуется всегда (с некоторыми мышами, например Logitech M590, она
-  пропадала, и казалось, что пульт не работает). До b19
+  пропадала, и казалось, что пульт не работает). В 1.2.0 добавлены Watch Next и обои Unsplash/Reddit. До b19
   лаунчером был **FLauncher** (форк osrosal 2025.07.001) с выключенной анимацией подсветки карточек (иначе 60 fps и
   ~95% одного ядра постоянно). Arc пока только на английском.
 - Приложения: **F-Droid**, **SmartTube**, **VLC**, **Material Files**, **Downloader** (AFTVnews),
@@ -45,6 +45,11 @@ Orange Pi Zero 3 (`H618-Android12-Src`, BSP Allwinner) и портированн
   погоды, опции «запуск при старте»). Менеджер фоновых процессов Allwinner (Awbms, `awbms_config`) блокировал
   `BOOT_COMPLETED` и фоновые сервисы всех приложений не из своего белого списка. Сборка теперь разделена по платам:
   имя образа, продукт Android и имя устройства указывают плату (см. [Как прошить](#как-прошить))
+- С b25: один образ для обоих вариантов Wi-Fi платы H616-T95MAX-V4.0 (UWE5622 и XR819): ядро выставляет режим
+  напряжения банка выводов PG (Wi-Fi) по напряжению, которое определяет процессор (ядро, `0006`). Переключатель
+  «Системные звуки» снова в *Настройки → Настройки устройства → Экран и звук* (его убрал Allwinner), звуки нажатий
+  выключены по умолчанию. Заставка по умолчанию — часы Arc Launcher (раньше была заставка, которой нет в прошивке).
+  На переднем дисплее `boot` вместо `bOOt`
 - ИК-пульт (включение из сна тоже), передний дисплей FD655 (часы + значки LAN/WiFi/USB),
   имя устройства `T95_h616`
 - **Выключение с пульта**: долгое нажатие power → меню «Выключить / Перезагрузить» (управляется стрелками
@@ -78,7 +83,7 @@ Ethernet AC200 (100 Мбит).
 **Не проверено:** звук через HDMI, CEC.
 
 Вторая плата, **H616-T95MAX-AXP313A-V2.0** (PMIC **AXP313A**, Wi-Fi/BT **BCM43342**, 2 ГБ), имеет свою папку
-`configs/t95-axp313`, свой продукт `apollo_t95axp313` и свой **релиз** (`axp313-final`, раньше тестовые pre-release `axp313-*`), его проверил
+`configs/t95-axp313`, свой продукт `apollo_t95axp313` и свой **релиз** (`axp313-b25-final`, раньше `axp313-final` и тестовые pre-release `axp313-*`), его проверил
 пользователь 4PDA на версии с **eMMC**. С axp313-test11 там тоже работают сон и пробуждение: прерывание
 пробуждения Wi-Fi (host-wake) блокировало лёгкий сон s2idle, теперь оно не будит систему (ядро, `0005`). Версия
 этой платы с **NAND** пока не прошивается (драйвер NAND в U-Boot из BSP не запускает микросхему).
@@ -86,16 +91,30 @@ Ethernet AC200 (100 Мбит).
 Третья плата, **H61X-T95MAX-AXP313A-V3.0** (PMIC **AXP313A**, Wi-Fi **XR819**, только 2,4 ГГц, без Bluetooth, eMMC), использует
 ту же папку и тот же продукт, что плата AXP313A, с тремя изменениями в device tree (`tools/t95_axp313_xr819_dts.sh`):
 банк PG (SDIO Wi-Fi) на 3,3 В, как в стоковой прошивке X29, `sdc1` без режимов UHS, `device_type = "btlpm"` для `wireless_switch.ko`.
-Её **релиз** — `axp313-xr819-final` (раньше тестовые pre-release `axp313-xr819-test*`), проверил пользователь 4PDA (Wi-Fi и LAN).
+Её **релиз** — `axp313-xr819-b25-final` (раньше `axp313-xr819-final` и тестовые pre-release `axp313-xr819-test*`), проверил
+пользователь 4PDA (Wi-Fi и LAN). С b25 в папке платы AXP313A eMMC в загрузчике работает на 3,3 В (`sdc_io_1v8 = 0`, без
+HS200/HS400 при прошивке), как в стоковой прошивке iconBIT A32: на приставке этого пользователя прошивка `axp313-xr819-final`
+останавливалась на 7% («fed_nand»), тестовая сборка `axp313-xr819-io33` с этим изменением прошилась. В Android eMMC работает как раньше.
 
-Те же три изменения для `configs/t95-axp806` дают **b24-xr819**: **тестовый pre-release** для **H616-T95MAX-V4.0**
-(PMIC AXP806/AXP305) с микросхемой **XR819** вместо модуля UWE5622 (только 2,4 ГГц, без Bluetooth). В остальном
-то же, что `b24-final`; пока не проверена.
+На некоторых платах **H616-T95MAX-V4.0** (PMIC AXP806/AXP305) вместо модуля UWE5622 стоит микросхема **XR819** (только
+2,4 ГГц, без Bluetooth). С b25 их покрывает тот же образ `b25-final`: в `configs/t95-axp806` теперь нет фиксированного
+напряжения банка PG (`allwinner,auto-power-mode` с ядром `0006`) и есть `device_type = "btlpm"`. Раньше три изменения
+для XR819 были в тестовом pre-release `b24-xr819`. Пользователями с XR819 пока не подтверждено.
+
+**Единый образ (тестовый pre-release `t95-h616-u3`).** Папка платы `configs/t95-h616`, продукт `apollo_t95h616`: один образ
+для H616-T95MAX-V4.0 и плат AXP313A с eMMC, как стоковая прошивка iconBIT A32. Device tree ядра — от AXP313A (AXP1530);
+если U-Boot находит AXP806, он применяет overlay `dtbo/p1.dts` к своему device tree и, с патчем 16, к device tree ядра.
+Напряжения для прошивки U-Boot берёт из узла `axp806_power_sply` / `axp1530_power_sply` найденного PMIC. Android видит
+результат в `ro.boot.t95_pmic` и включает лёгкий сон (s2idle) только с AXP1530. Работает на моей V4.0 и на
+H616-T95MAX-AXP313A-V2.0 пользователя. На одной H61X-T95MAX-AXP313A-V3.0 с XR819 не прошивается: останавливается на 7%,
+и после этой неудачной попытки приставка принимает только стоковую прошивку iconBIT, а после неё снова наш образ для
+своей платы. Поэтому релизами остаются отдельные образы для каждой платы.
 
 Смотрите надпись на плате: **H616-T95MAX-V4.0** (эта приставка, PMIC AXP806 или AXP305) = файлы `T95-AXP806-…`,
 **H616-T95MAX-AXP313A-V2.0** с eMMC = файлы `T95-AXP313-eMMC-…` (версия с NAND пока не поддерживается),
-**H61X-T95MAX-AXP313A-V3.0** (Wi-Fi XR819) = файлы `T95-AXP313-eMMC-a12-xr819-final-…`,
-**H616-T95MAX-V4.0** с Wi-Fi XR819 вместо UWE5622 = тестовые файлы `T95-AXP806-a12-b24-xr819-…`.
+**H61X-T95MAX-AXP313A-V3.0** (Wi-Fi XR819) = файлы `T95-AXP313-eMMC-a12-b25-xr819-final-…`,
+**H616-T95MAX-V4.0** с Wi-Fi XR819 вместо UWE5622 = те же файлы `T95-AXP806-…` (с b25).
+Единый тестовый образ `T95-H616-…` (pre-release `t95-h616-u3`) — для всех них, кроме NAND.
 Внутри сборки эти платы называются **T95-AXP806** и **T95-AXP313** (`-eMMC` / `-NAND`). Не прошивайте образ для одной
 платы на другую: в имени файла указано, для какой он платы (`T95-AXP806-…`, `T95-AXP313-eMMC-…`;
 b23 и тестовые сборки: `update.T95-…`; до b22: `t95axp806` / `t95axp313`).
@@ -108,10 +127,10 @@ b23 и тестовые сборки: `update.T95-…`; до b22: `t95axp806` / 
 
 1. **Сохраните свою текущую прошивку**, если она у вас есть (или найдите сток для своей ревизии).
 2. Нужен кабель USB A-A (папа-папа) и PhoenixSuit (Windows) или OpenixSuit (Linux).
-3. Скачайте из [Releases](../../releases) образ для своей платы: `T95-AXP806-a12-b24-final-user.img.xz`
-   (H616-T95MAX-V4.0, релиз `b24-final`) или `T95-AXP313-eMMC-a12-final-user.img.xz` (H616-T95MAX-AXP313A-V2.0 с eMMC,
-   релиз `axp313-final`) или `T95-AXP313-eMMC-a12-xr819-final-user.img.xz` (H61X-T95MAX-AXP313A-V3.0, релиз
-   `axp313-xr819-final`), для root — файл `-magisk-`
+3. Скачайте из [Releases](../../releases) образ для своей платы: `T95-AXP806-a12-b25-final-user.img.xz`
+   (H616-T95MAX-V4.0 с UWE5622 или XR819, релиз `b25-final`) или `T95-AXP313-eMMC-a12-b25-final-user.img.xz`
+   (H616-T95MAX-AXP313A-V2.0 с eMMC, релиз `axp313-b25-final`) или `T95-AXP313-eMMC-a12-b25-xr819-final-user.img.xz`
+   (H61X-T95MAX-AXP313A-V3.0, релиз `axp313-xr819-b25-final`), для root — файл `-magisk-`
    того же релиза, и распакуйте (7-Zip в Windows, `xz -d` в Linux), затем
    выберите `.img`, режим полной прошивки (Full Erase).
 4. На выключенной приставке зажмите кнопку reset (в отверстии AV), подключите USB к ПК, отпустите кнопку
@@ -121,8 +140,8 @@ b23 и тестовые сборки: `update.T95-…`; до b22: `t95axp806` / 
 Альтернатива без кабеля: microSD, подготовленная в PhoenixCard (режим «Product»).
 **Все данные на приставке будут стёрты.** Файл `.img` — это всегда полная прошивка, а не обновление с сохранением данных.
 
-С b23 в имени продукта и устройства Android есть плата (`apollo_t95axp806` / `apollo_t95axp313`, раньше
-`apollo_t95` для обеих), поэтому OTA-пакет одной платы не установится на другую. При переходе с b22 и более ранних версий один раз
+С b23 в имени продукта и устройства Android есть плата (`apollo_t95axp806` / `apollo_t95axp313`, единый тестовый
+образ: `apollo_t95h616`; раньше `apollo_t95` для обеих), поэтому OTA-пакет одной платы не установится на другую. При переходе с b22 и более ранних версий один раз
 прошейте полный образ.
 
 ### Как вернуться на сток или другую прошивку
@@ -167,7 +186,8 @@ USB) находится в ПЗУ процессора, стереть его н
 `H618-Android12-Src.tar.gz{aa..ar}`, md5 из папки Orange Pi совпадает). Плата Zero 3 в исходниках
 называется **p2** (продукт `apollo_p2`); для T95 добавлены конфигурации плат **t95-axp806** и **t95-axp313**
 (папки longan с описанием железа: device tree, DRAM, PMIC; на основе p2) и продукты
-**apollo_t95axp806** и **apollo_t95axp313** (Android) с общей частью `device/softwinner/apollo/t95-common`.
+**apollo_t95axp806** и **apollo_t95axp313** (Android), а также тестовая плата единого образа **t95-h616** / **apollo_t95h616**,
+с общей частью `device/softwinner/apollo/t95-common`.
 Система для сборки: Ubuntu 22.04.
 
 **Ключей подписи в репозитории нет**: генерируйте свои (`tools/gen_app_keys.sh` для ключей приложений,
@@ -188,11 +208,16 @@ USB) находится в ПЗУ процессора, стереть его н
 | `patches/10-b19-t95-axp313.patch` | b19: DocumentsUI (его убирал override `TvdFileManager`), SELinux: приложения читают температуру процессора (`sysfs_thermal`, `sysfs_temp`). Для платы AXP313A: `PRODUCT_BOARD` из `T95_BOARD` (заменено двумя продуктами патча 14), лёгкий сон s2idle (`axp313-s2idle.rc`, `/sys/power/mem_sleep` → `sysfs_power`), BCM43342 в `libhwinfo.c`, `config.txt` AP6334 с ccode XZ/11. Только для тестовых сборок (`T95_LOGGER=1`): сборщик логов `t95log` (dmesg/logcat в `/sdcard/T95_LOG`) |
 | `patches/11-b21-t95.patch` | b20/b21: анимации 0,5x по умолчанию (overlay SettingsProvider `defaults.xml`), Bluetooth LE local privacy только если контроллер умеет LL privacy (`btif_dm.cc`), Arc Launcher вместо FLauncher (`apps/Android.mk`, `apollo_t95.mk`), VLC из F-Droid. Фон создаёт `tools/t95_wallpaper.py` |
 | `patches/12-arclauncher-1.0.10-t95.patch` | [Arc Launcher](https://github.com/meddouribadis/arclauncher) (тег 1.0.10): тёмный фон по умолчанию; с b23 (1.0.10-t95.4) нет «Избранного» по умолчанию (главный экран открывается на All Apps) и подсветка фокуса всегда включена (`FocusHighlightStrategy.alwaysTraditional`). Сборка: Flutter 3.41.9, `flutter build apk --release --flavor play --split-per-abi --target-platform android-arm64` (во flavor `play` нет самообновления) |
-| `patches/07-kernel-5.4.302/` | ядро 5.4.125 → 5.4.302 (с b18): скрипт merge ACK, разрешённые конфликты, 0001–0003 (0003 — исправление зависания после сна), только плата AXP313A: 0004 — BCM43342 в bcmdhd, 0005 — host-wake Wi-Fi больше не будит систему (`oob_wake=0`, исправляет s2idle). См. [Ядро](#ядро) |
+| `patches/07-kernel-5.4.302/` | ядро 5.4.125 → 5.4.302 (с b18): скрипт merge ACK, разрешённые конфликты, 0001–0003 (0003 — исправление зависания после сна), только плата AXP313A: 0004 — BCM43342 в bcmdhd, 0005 — host-wake Wi-Fi больше не будит систему (`oob_wake=0`, исправляет s2idle); с b25 (t95-axp806, t95-h616): 0006 — режим напряжения банков выводов без `vcc-pX` по `PIO_POW_VAL`. См. [Ядро](#ядро) |
 | `patches/13-b23-t95.patch` | b23: менеджер фоновых процессов Allwinner без блокировок (`device/softwinner/common/config/awbms_config`: `blockBroadcast`, `skipService` = false) — приложения пользователя получают `BOOT_COMPLETED` и могут запускать сервисы; комментарий Arc в `apps/Android.mk` |
 | `patches/14-split-boards-t95axp806-t95axp313.patch` | b23: по продукту на плату. `apollo_t95.mk` → `t95-common/t95_product.mk` (общий), новые `apollo_t95axp806.mk` / `apollo_t95axp313.mk`, папки устройств `apollo-t95axp806` / `apollo-t95axp313` (BoardConfig, `system/`, camera); apps, overlay, sepolicy, `t95/`, `t95log/` перенесены в `t95-common`. Содержит переименования: применять через `git apply` |
 | `patches/15-b24-fd655-boot.patch` | b24: передний дисплей показывает `boot` через несколько секунд после включения, как стоковая прошивка (`fd655.rc`: `on early-init`); раньше он был тёмным до запуска службы часов (10–15 с) |
-| `longan/device/config/chips/h618/configs/t95-axp313/` | папка платы H616-T95MAX-AXP313A-V2.0: AXP313A (как у Zero 3), DRAM из стоковой прошивки A29, тактовая 32 кГц для AP6334, выводы NAND; создаётся двумя инструментами `t95_axp313_*` |
+| `longan/device/config/chips/h618/configs/t95-axp313/` | папка платы H616-T95MAX-AXP313A-V2.0: AXP313A (как у Zero 3), DRAM из стоковой прошивки A29, тактовая 32 кГц для AP6334, выводы NAND; с b25 eMMC на 3,3 В в загрузчике (`sdc_io_1v8 = 0`, `pc_bias` 3300, как в iconBIT A32); создаётся двумя инструментами `t95_axp313_*` |
+| `patches/16-t95h616-unica.patch` | единый тестовый образ (pre-release `t95-h616-u3`): продукт `apollo_t95h616` / устройство `apollo-t95h616` (`dragon_toc.cfg` с элементом `dtbo` в toc1, потому что приставка загружается в режиме secure), `axp1530-s2idle.rc` (s2idle только при `ro.boot.t95_pmic` = `axp1530`), U-Boot: overlay PMIC из boot_package применяется к копии device tree (при ошибке device tree остаётся прежним) и также к device tree ядра (`sunxi_replace_fdt.c`). В отдельных образах для каждой платы изменение U-Boot ничего не делает (нет `dtbo` или PMIC = `pmu0`) |
+| `longan/device/config/chips/h618/configs/t95-h616/` | папка платы единого образа: `sys_config.fex` = t95-axp806 (DRAM `select_mode` 0, как в iconBIT A32) + `[axp1530_power_sply]`; `board.dts` ядра = t95-axp313 (AXP1530) + авто-режим банка PG, `device_type = "btlpm"`, `/firmware/android/t95_pmic`; `dtbo/p1.dts` = overlay AXP806 (регуляторы t95-axp806); `uboot-board.dts` с `axp806_power_sply` / `axp1530_power_sply` |
+| `patches/16a-b25-system-sounds.patch` | b25: переключатель «Системные звуки» снова в «Экран и звук» (`DisplaySoundFragment.java`: Allwinner убрал этот пункт), звуки нажатий выключены по умолчанию (оверлей SettingsProvider `def_sound_effects_enabled`) |
+| `patches/17-b25-t95.patch` | b25: заставка по умолчанию = часы Arc Launcher (`config_dreamsDefaultComponent`; Allwinner ставит `com.android.dreams.web`, которого нет в прошивке), передний дисплей `boot` со строчной `o` (`fd655.sh`), комментарии `apps/Android.mk` для Arc 1.2.0, SmartTube 32.68, F-Droid 2.0.2 |
+| `patches/17a-arclauncher-1.2.0-t95.patch` | [Arc Launcher](https://github.com/meddouribadis/arclauncher) (тег 1.2.0), с b25 (1.2.0-t95.1): изменения патча 12 + `screensaver.xml` с `settingsActivity` `com.omeda.arc/.MainActivity` (в upstream до сих пор `me.efesser.flauncher`). Сборка как для патча 12 |
 | `tools/bl31_t95_patch.py` | создаёт `bin/bl31_<плата>.bin` (`bl31_t95-axp806.bin`, `bl31_t95-axp313.bin`; `pack` выбирает его по имени платы) из `bl31.bin`: пропуск «hardware check» только для H618 (0x1F4C). С `--fakeoff` — ещё старый обход выключения из b13–b15 (PSCI SYSTEM_OFF, 0x1CF0..0x1D00), с b16 не нужен |
 | `tools/t95_board_dts.py` | генератор `board.dts` t95-axp806 из p2 (результат уже в `configs/t95-axp806`) |
 | `tools/t95_sys_config.py` | генератор `sys_config.fex` t95-axp806 из p2 + стокового `sys_config.fex` T95 |
@@ -201,7 +226,7 @@ USB) находится в ПЗУ процессора, стереть его н
 | `tools/t95_wallpaper.py` | создаёт системный фон по умолчанию (тёмный градиент, b20+) в overlay `t95-common` (нужен Pillow) |
 | `tools/magisk-boot.sh` | вариант с root: патчит Magisk-ом `boot.img` из signed target files, переподписывает vbmeta своим ключом AVB; затем `pack -v` |
 | `tools/t95_axp313_board_dts.py`, `tools/t95_axp313_sys_config.py` | создают `board.dts` и `sys_config.fex` для `configs/t95-axp313` из p2 (+ стоковый `sys_config.fex` этой платы) |
-| `tools/t95_axp313_xr819_dts.sh` | вариант с Wi-Fi XR819 для папки платы (`configs/t95-axp313` для H61X-T95MAX-AXP313A-V3.0, `configs/t95-axp806` для b24-xr819): банк PG на 3,3 В, `sdc1` без UHS, `device_type = "btlpm"` (нужен `wireless_switch.ko`) |
+| `tools/t95_axp313_xr819_dts.sh` | вариант с Wi-Fi XR819 для `configs/t95-axp313` (H61X-T95MAX-AXP313A-V3.0; до b24 также `configs/t95-axp806` для b24-xr819): банк PG на 3,3 В, `sdc1` без UHS, `device_type = "btlpm"` (нужен `wireless_switch.ko`) |
 
 ### Порядок сборки
 
@@ -210,12 +235,13 @@ USB) находится в ПЗУ процессора, стереть его н
 ```sh
 git clone https://github.com/well83/t95-h616-android12.git
 cd H618-Android12-Src
-cp -a ../t95-h616-android12/longan .                         # папки плат configs/t95-axp806, t95-axp313
+cp -a ../t95-h616-android12/longan .                         # папки плат configs/t95-axp806, t95-axp313, t95-h616
 cp -a device/softwinner/apollo/apollo-p2 device/softwinner/apollo/apollo-t95
 cp    device/softwinner/apollo/apollo_p2.mk device/softwinner/apollo/apollo_t95.mk
 bash ../t95-h616-android12/patches/07-kernel-5.4.302/merge-ack-5.4.302.sh longan/kernel/linux-5.4 ~/k302   # ядро 5.4.302
+git -C ~/k302/linux-5.4 am $PWD/../t95-h616-android12/patches/07-kernel-5.4.302/000[4-6]-*.patch   # с b25: 0004-0006
 rsync -a --delete --exclude=.git ~/k302/linux-5.4/ longan/kernel/linux-5.4/
-for p in 03a 03b 04 05 08 09 10 11 13 14 15; do git apply -p1 ../t95-h616-android12/patches/$p-*.patch; done   # 14: только git apply (переименования)
+for p in 03a 03b 04 05 08 09 10 11 13 14 15 16 16a 17; do git apply -p1 ../t95-h616-android12/patches/$p-*.patch; done   # 14: только git apply (переименования)
 B=device/softwinner/apollo/common/media/bootanimation/bootanimation.zip
 python3 ../t95-h616-android12/tools/t95_bootsound.py $B $B.new -24 && mv $B.new $B   # звук загрузки -24 дБ
 python3 ../t95-h616-android12/tools/t95_wallpaper.py device/softwinner/apollo/t95-common/overlay/frameworks/base/core/res/res
@@ -225,9 +251,9 @@ python3 ../t95-h616-android12/tools/bl31_t95_patch.py longan/device/config/chips
 
 APK приложений кладутся в `device/softwinner/apollo/t95-common/apps/<Имя>/`, нативные библиотеки из APK
 распаковать в `apps/<Имя>/lib/arm64/` (см. `apps/Android.mk`, там же SHA-256 каждого APK): ArcLauncher
-(собранный с патчем 12; до b19 FLauncher с патчем 06), MaterialFiles 1.7.5 (F-Droid), CromiteWebView 153.0.8010.37 (arm64
-SystemWebView), SmartTube 32.56 stable, VLC 3.7.2 arm64 (сборка F-Droid), Downloader 2.0.4 (+ `split_config.*`),
-F-Droid 2.0.1.
+(собранный с патчем 17a; до b24 патч 12 для 1.0.10; до b19 FLauncher с патчем 06), MaterialFiles 1.7.5 (F-Droid),
+CromiteWebView 153.0.8010.37 (arm64 SystemWebView), SmartTube 32.68 stable, VLC 3.7.2 arm64 (сборка F-Droid), Downloader 2.0.4
+(+ `split_config.*`), F-Droid 2.0.2.
 
 Комментарии в патчах и инструментах — на русском (проект сначала публиковался на 4PDA).
 
@@ -250,14 +276,20 @@ source build/envsetup.sh && lunch apollo_t95axp806-user && make -j10 && pack4dis
 
 Вариант с root (после сборки выше): `bash ../t95-h616-android12/tools/magisk-boot.sh Magisk-v30.7.apk && pack -v`.
 
-Плата AXP313A: дополнительно примените к ядру `patches/07-kernel-5.4.302/0004-*.patch` и `0005-*.patch`, скопируйте прошивки
+Плата AXP313A: релизы b25 собраны с ядром 0001-0005 (0006 там ничего не делает: в её device tree нет
+`allwinner,auto-power-mode`). Скопируйте прошивки
 Wi-Fi/BT этой платы из её стокового `/vendor/etc/firmware` (`fw_bcm43342_ag*.bin`, `nvram_ap6334.txt`,
 `bcm43342a1.hcd`; не включены, лицензия Broadcom) в `hardware/aw/wireless/partner/ampak/firmware/ap6334/`,
 создайте `bin/bl31_t95-axp313.bin` через `tools/bl31_t95_patch.py` (как для t95-axp806), затем собирайте с
 `-b t95-axp313` и `lunch apollo_t95axp313-user`. Образ: `longan/out/h618_android12_t95-axp313_uart0_secure_v0.img`.
 Для H61X-T95MAX-AXP313A-V3.0 (XR819) перед этой сборкой запустите `tools/t95_axp313_xr819_dts.sh` для `configs/t95-axp313`
 (сохраните копию двух `board.dts` и верните их после сборки).
-Для H616-T95MAX-V4.0 с XR819 (b24-xr819) запустите тот же скрипт для `configs/t95-axp806` перед сборкой t95-axp806.
+С b25 сборка t95-axp806 покрывает и H616-T95MAX-V4.0 с XR819 (скрипт не нужен).
+
+Единый тестовый образ: ядро с 0001-0006, прошивки Wi-Fi/BT платы AXP313A как выше, `bin/bl31_t95-h616.bin` (тот же
+инструмент), затем собирайте с `-b t95-h616` и `lunch apollo_t95h616-user`. Образ: `longan/out/h618_android12_t95-h616_uart0_secure_v0.img`.
+Проверка по логу UART при загрузке: `sunxi overlay merged ok` и `kernel fdt: sunxi overlay merged ok` на платах с AXP806,
+`not need merged sunxi overlay` на платах с AXP313A.
 
 ### Ядро
 
@@ -273,6 +305,9 @@ ACK, а не патчами (`patches/07-kernel-5.4.302/`):
   - 0003: **исправление зависания после сна** (см. ниже);
   - только плата AXP313A: 0004 (имя прошивки BCM43342) и 0005 (параметр `bcmdhd` `oob_wake`, по умолчанию 0:
     прерывание host-wake Wi-Fi по уровню срабатывало сразу при входе в s2idle и на минуты занимало CPU0).
+  - с b25 (t95-axp806, t95-h616): 0006 (`pinctrl-sunxi`): банки, перечисленные в свойстве `allwinner,auto-power-mode`
+    узла `pio` и без настоящего питания `vcc-pX`, получают режим напряжения по напряжению, которое определяет процессор
+    (`PIO_POW_VAL`). Банк PG (SDIO Wi-Fi) — 1,8 В с UWE5622/LG642 и 3,3 В с XR819, поэтому один образ работает с обоими.
 - Исходники ядра AW должны быть чистыми (только что распакованными, ни разу не собранными). Патч 09 накладывать
   **после** копирования исходников в `longan/kernel/linux-5.4`. При смене версии ядра сначала удалить
   `longan/out/kernel/{build,staging}`, иначе clang падает на старом конфиге.
@@ -290,6 +325,8 @@ android12-5.4 с ядром ≥ 5.4.290, которое засыпает с от
 
 - `linux-5.4/board.dts` (генератор `tools/t95_board_dts.py`): AXP806 вместо AXP1530, eMMC DDR52,
   gmac1/AC200 (twi3, PA10/11), LED PH6/7, VBUS PH8, USB0 host, ИК fe02/0x40, OPP, card detect SD PI16.
+  С b25 (добавлено вручную): банк PG без `vcc-pg-supply`, с `allwinner,auto-power-mode = <0x40>` (ядро 0006),
+  и `device_type = "btlpm"` в `&btlpm` (нужен `wireless_switch.ko` для XR819).
   Скомпилированный dtb сверен со стоковым `sunxi_t95.dtb` приставки.
 - `sys_config.fex` (`tools/t95_sys_config.py`): DRAM/twi/gpio_bias из стока, питание AXP806.
 - `uboot-board.dts`: boot_clock 1008, AXP806, `sdc_io_1v8=0`. `pack` **не** сливает `sys_config` в DT
@@ -333,7 +370,7 @@ BL31 сразу вызывает box standby (функция 0x1B2C с сохр�
 ## Другие ревизии платы
 
 T95 бывают с другим PMIC (например AXP313A/AXP1530), памятью и Wi-Fi. У платы AXP313A теперь есть своя папка
-`configs/t95-axp313` (см. [Проверено на](#проверено-на)). Ревизия описывается своей папкой платы,
+`configs/t95-axp313`, а `configs/t95-h616` проверяет один образ для обоих PMIC (см. [Проверено на](#проверено-на)). Ревизия описывается своей папкой платы,
 как у Orange Pi и Radxa: `longan/device/config/chips/h618/configs/<плата>/` с `sys_config.fex` (DRAM, напряжения PMIC, GPIO),
 `linux-5.4/board.dts` (DT ядра) и `uboot-board.dts`, плюс небольшой продукт Android (`apollo_t95<имя>.mk` и папка
 устройства, как `apollo-t95axp806`; всё остальное общее в `t95-common`). Папка Zero 3 `p2` уже
@@ -350,12 +387,12 @@ T95 бывают с другим PMIC (например AXP313A/AXP1530), пам
 
 ## Лицензии
 
-- Папки плат `longan/device/config/chips/h618/configs/t95-axp806/` и `t95-axp313/` сделаны из конфигурации BSP Orange Pi /
+- Папки плат `longan/device/config/chips/h618/configs/t95-axp806/`, `t95-axp313/` и `t95-h616/` сделаны из конфигурации BSP Orange Pi /
   Allwinner (`configs/p2`) и остаются под лицензией этих файлов.
 - Патчи к AOSP, BSP Allwinner и device tree — под лицензией изменяемых файлов (в основном Apache-2.0;
   ядро и файлы в `patches/07-kernel-5.4.302/resolved/` — GPL-2.0).
-- `patches/06-flauncher-v2025.07.001-t95.patch` — изменение FLauncher, `patches/12-arclauncher-1.0.10-t95.patch` —
-  изменение Arc Launcher, оба GPL-3.0.
+- `patches/06-flauncher-v2025.07.001-t95.patch` — изменение FLauncher, `patches/12-arclauncher-1.0.10-t95.patch` и
+  `patches/17a-arclauncher-1.2.0-t95.patch` — изменения Arc Launcher, все GPL-3.0.
 - Инструменты в `tools/` и документация — Apache-2.0 (см. [LICENSE](LICENSE)).
 - Предустановленные приложения не изменены (кроме FLauncher / Arc Launcher), лицензии и подписи — авторов.
 

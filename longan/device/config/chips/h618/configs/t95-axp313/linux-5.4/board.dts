@@ -764,7 +764,7 @@
 		card_line = <0x8>;
 		pinctrl-0 = <&sdc2_pins_a &sdc2_pins_c>;
 		sdc_ex_dly_used = <0x2>;
-		sdc_io_1v8 = <0x1>;
+		sdc_io_1v8 = <0x0>;
 		sdc_type = "tm4";
 	};
 

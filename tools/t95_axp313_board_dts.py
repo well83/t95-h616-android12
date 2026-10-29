@@ -39,6 +39,9 @@ def sub_re(pat, new, flags=re.M | re.S):
 
 sub('model = "Orange Pi Zero 3";', 'model = "T95 H616 AXP313A";')
 
+# U-Boot: eMMC 3,3 В без HS200/HS400, как в iconBIT A32
+sub_re(r'(card2_boot_para@3 \{.*?sdc_io_1v8 = )<0x1>;', r'\1<0x0>;')
+
 # 4. VBUS порта USB: PH8 (PC16 — вывод NAND)
 sub('\t\tgpio = <&pio PC 16 GPIO_ACTIVE_HIGH>;\n\t\tenable-active-high;\n',
     '\t\tgpio = <&pio PH 8 GPIO_ACTIVE_HIGH>;\n\t\tenable-active-high;\n\t\tregulator-always-on;\n')

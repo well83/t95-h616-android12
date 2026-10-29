@@ -1,0 +1,96 @@
+From 1d5d8660786041534a520e32ed964c9a5b17eeb7 Mon Sep 17 00:00:00 2001
+From: well83 <well83@users.noreply.github.com>
+Date: Thu, 29 Oct 2026 11:03:10 +0100
+Subject: [PATCH] pinctrl: sunxi: auto power mode from PIO_POW_VAL for banks
+ without vcc-pX (T95 Wi-Fi PG)
+
+Banks listed in the pio node property allwinner,auto-power-mode (bit n = bank Pn)
+and without a real vcc-pX supply get PIO_POW_MOD_SEL from the voltage detected by
+the SoC (PIO_POW_VAL, 0x348). One image then works with 1.8 V (UWE5622, LG642) and
+3.3 V (XR819) Wi-Fi modules on bank PG.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ drivers/pinctrl/sunxi/pinctrl-sunxi.c | 40 ++++++++++++++++++++++++---
+ drivers/pinctrl/sunxi/pinctrl-sunxi.h |  1 +
+ 2 files changed, 37 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/pinctrl/sunxi/pinctrl-sunxi.c b/drivers/pinctrl/sunxi/pinctrl-sunxi.c
+index 4f9b5c27f..a45d5c188 100644
+--- a/drivers/pinctrl/sunxi/pinctrl-sunxi.c
++++ b/drivers/pinctrl/sunxi/pinctrl-sunxi.c
+@@ -506,13 +506,48 @@ static int sunxi_pinctrl_set_io_bias_cfg(struct sunxi_pinctrl *pctl,
+ {
+ 	unsigned short bank;
+ 	unsigned long flags;
+-	u32 val, reg;
++	u32 val, reg, mask;
+ 	int uV;
+ 
+ 	if (!pctl->desc->io_bias_cfg_variant)
+ 		return 0;
+ 
++	pin -= pctl->desc->pin_base;
++	bank = pin / PINS_PER_BANK;
++
+ 	uV = regulator_get_voltage(supply);
++
++	/*
++	 * T95: no vcc-pX supply in the DT (dummy regulator) and the bank in
++	 * the "allwinner,auto-power-mode" mask of the pio node (bit n = bank
++	 * Pn, e.g. <0x40> = PG): take the bank mode from PIO_POW_VAL (voltage
++	 * detected by the SoC), so one image works with 1.8 V (UWE5622, LG642)
++	 * and 3.3 V (XR819) Wi-Fi on bank PG.
++	 */
++	if (uV <= 0 &&
++	    (pctl->desc->io_bias_cfg_variant == BIAS_VOLTAGE_PIO_POW_MODE_SEL ||
++	     pctl->desc->io_bias_cfg_variant == BIAS_VOLTAGE_PIO_POW_MODE_CTL) &&
++	    !of_property_read_u32(pctl->dev->of_node, "allwinner,auto-power-mode",
++				  &mask) && (mask & BIT(bank))) {
++		val = (readl(pctl->membase + PIO_POW_VAL_REG) >> bank) & 1;
++
++		raw_spin_lock_irqsave(&pctl->lock, flags);
++		reg = readl(pctl->membase + PIO_POW_MOD_SEL_REG);
++		reg &= ~(1 << bank);
++		writel(reg | val << bank, pctl->membase + PIO_POW_MOD_SEL_REG);
++		if (pctl->desc->io_bias_cfg_variant ==
++		    BIAS_VOLTAGE_PIO_POW_MODE_CTL) {
++			reg = readl(pctl->membase + PIO_POW_MOD_CTL_REG);
++			writel(reg & ~BIT(bank),
++			       pctl->membase + PIO_POW_MOD_CTL_REG);
++		}
++		raw_spin_unlock_irqrestore(&pctl->lock, flags);
++
++		dev_info(pctl->dev, "bank P%c: auto power mode %s\n",
++			 'A' + bank, val ? "1.8V" : "3.3V");
++		return 0;
++	}
++
+ 	if (uV < 0)
+ 		return uV;
+ 
+@@ -520,9 +555,6 @@ static int sunxi_pinctrl_set_io_bias_cfg(struct sunxi_pinctrl *pctl,
+ 	if (uV == 0)
+ 		return 0;
+ 
+-	pin -= pctl->desc->pin_base;
+-	bank = pin / PINS_PER_BANK;
+-
+ 	switch (pctl->desc->io_bias_cfg_variant) {
+ 	case BIAS_VOLTAGE_GRP_CONFIG:
+ 		/*
+diff --git a/drivers/pinctrl/sunxi/pinctrl-sunxi.h b/drivers/pinctrl/sunxi/pinctrl-sunxi.h
+index 2f37085e3..267099b49 100644
+--- a/drivers/pinctrl/sunxi/pinctrl-sunxi.h
++++ b/drivers/pinctrl/sunxi/pinctrl-sunxi.h
+@@ -98,6 +98,7 @@
+ 
+ #define PIO_POW_MOD_SEL_REG	0x340
+ #define PIO_POW_MOD_CTL_REG	0x344
++#define PIO_POW_VAL_REG		0x348
+ #define PIO_POW_CTL_REG		0x350
+ 
+ #define POWER_SOURCE_MASK	0x01
+-- 
+2.56.0
+

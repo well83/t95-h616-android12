@@ -1,0 +1,22 @@
+diff -ruN a/device/softwinner/apollo/t95-common/overlay/frameworks/base/packages/SettingsProvider/res/values/defaults.xml b/device/softwinner/apollo/t95-common/overlay/frameworks/base/packages/SettingsProvider/res/values/defaults.xml
+--- a/device/softwinner/apollo/t95-common/overlay/frameworks/base/packages/SettingsProvider/res/values/defaults.xml	2026-10-18 22:47:54.067811095 +0200
++++ b/device/softwinner/apollo/t95-common/overlay/frameworks/base/packages/SettingsProvider/res/values/defaults.xml	2026-10-29 11:09:33.435273013 +0100
+@@ -6,4 +6,6 @@
+ <resources>
+     <fraction name="def_window_animation_scale">50%</fraction>
+     <fraction name="def_window_transition_scale">50%</fraction>
++    <!-- T95: системные звуки (нажатия) выключены по умолчанию; переключатель в «Экран и звук» -->
++    <bool name="def_sound_effects_enabled">false</bool>
+ </resources>
+diff -ruN a/packages/apps/TvSettings/Settings/src/com/android/tv/settings/device/displaysound/DisplaySoundFragment.java b/packages/apps/TvSettings/Settings/src/com/android/tv/settings/device/displaysound/DisplaySoundFragment.java
+--- a/packages/apps/TvSettings/Settings/src/com/android/tv/settings/device/displaysound/DisplaySoundFragment.java	2023-06-16 04:14:44.000000000 +0200
++++ b/packages/apps/TvSettings/Settings/src/com/android/tv/settings/device/displaysound/DisplaySoundFragment.java	2026-10-29 11:09:33.420241621 +0100
+@@ -95,7 +95,7 @@
+         mEnablePassThrough = (TwoStatePreference) findPreference(KEY_ENABLE_PASS_THROUGH);
+         mAudioOutputPreference = findPreference(KEY_AUDIO_OUTPUT_MODE);
+         mEnablePassThrough.setChecked(Settings.System.getInt(getActivity().getContentResolver(),Settings.System.ENABLE_PASS_THROUGH, 0) != 0);
+-        getPreferenceScreen().removePreference(soundPref);
++        // T95: оставляем переключатель «Системные звуки» (Allwinner его убрал, другого способа их выключить нет)
+         updateCecPreference();
+     }
+ 

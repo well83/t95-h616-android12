@@ -1,0 +1,1180 @@
+diff -ruN a/device/softwinner/apollo/AndroidProducts.mk b/device/softwinner/apollo/AndroidProducts.mk
+--- a/device/softwinner/apollo/AndroidProducts.mk	2026-10-20 11:09:38.591439363 +0200
++++ b/device/softwinner/apollo/AndroidProducts.mk	2026-10-29 14:12:34.729737098 +0100
+@@ -21,6 +21,7 @@
+     $(LOCAL_DIR)/apollo_p2.mk \
+     $(LOCAL_DIR)/apollo_t95axp806.mk \
+     $(LOCAL_DIR)/apollo_t95axp313.mk \
++    $(LOCAL_DIR)/apollo_t95h616.mk \
+ 
+ COMMON_LUNCH_CHOICES := \
+     apollo_p7-eng \
+@@ -41,3 +42,6 @@
+     apollo_t95axp313-eng \
+     apollo_t95axp313-userdebug \
+     apollo_t95axp313-user \
++    apollo_t95h616-eng \
++    apollo_t95h616-userdebug \
++    apollo_t95h616-user \
+diff -ruN a/device/softwinner/apollo/apollo-t95h616/BoardConfig.mk b/device/softwinner/apollo/apollo-t95h616/BoardConfig.mk
+--- a/device/softwinner/apollo/apollo-t95h616/BoardConfig.mk	1970-01-01 01:00:00.000000000 +0100
++++ b/device/softwinner/apollo/apollo-t95h616/BoardConfig.mk	2026-10-20 11:09:38.579038239 +0200
+@@ -0,0 +1,31 @@
++include device/softwinner/common/BoardConfigCommon.mk
++
++include $(PRODUCT_PLATFORM_PATH)/BoardConfig.mk
++
++# must include common BoardConfig.mk in the end
++# T95: SELinux enforcing (строка AW "androidboot.selinux=permissive" убрана); правила T95 в t95-common/sepolicy (общие для обеих плат)
++BOARD_SEPOLICY_DIRS += $(PRODUCT_PLATFORM_PATH)/t95-common/sepolicy
++# правила сборщика логов t95log (работает только с T95_LOGGER=1, правила есть всегда)
++SYSTEM_EXT_PRIVATE_SEPOLICY_DIRS += $(PRODUCT_PLATFORM_PATH)/t95-common/t95log/sepolicy
++ifeq ($(T95_LOGGER),1)
++BOARD_KERNEL_CMDLINE += log_buf_len=2M
++endif
++BOARD_KERNEL_CMDLINE += androidboot.dtbo_idx=0,1,2
++BOARD_KERNEL_CMDLINE += firmware_class.path=/vendor/etc/firmware
++
++
++# wifi and bt configuration
++# 1. Wifi Configuration
++BOARD_WIFI_VENDOR := common
++BOARD_USR_WIFI    :=
++WIFI_DRIVER_MODULE_PATH :=
++WIFI_DRIVER_MODULE_NAME :=
++WIFI_DRIVER_MODULE_ARG  :=
++
++# 2. Bluetooth Configuration
++BOARD_BLUETOOTH_VENDOR    := common
++BOARD_HAVE_BLUETOOTH_NAME :=
++BOARD_BLUETOOTH_CONFIG_DIR :=  $(PRODUCT_PLATFORM_PATH)/common/wireless/bluetooth
++BOARD_BLUETOOTH_TTY := /dev/ttyAS1
++# Must include after wifi/bt configuration
++include device/softwinner/common/config/wireless/wireless_config.mk
+diff -ruN a/device/softwinner/apollo/apollo-t95h616/camera/camera.cfg b/device/softwinner/apollo/apollo-t95h616/camera/camera.cfg
+--- a/device/softwinner/apollo/apollo-t95h616/camera/camera.cfg	1970-01-01 01:00:00.000000000 +0100
++++ b/device/softwinner/apollo/apollo-t95h616/camera/camera.cfg	2023-06-16 03:51:04.000000000 +0200
+@@ -0,0 +1,194 @@
++;-------------------------------------------------------------------------------
++; 用于camera的配置
++;
++; 采用格式:
++; key = key_value
++; 注意: 每个key需要顶格写;
++;		key_value紧跟着key后面的等号后面, 位于同一行中;
++;		key_value限制大小为256字节以内;
++;
++;-------------------------------------------------------------------------------
++
++;-------------------------------------------------------------------------------
++; exif information of "make" and "model"
++;-------------------------------------------------------------------------------
++key_camera_exif_make = MAKE_AllWinner
++key_camera_exif_model = PRODUCT_BOARD
++
++;-------------------------------------------------------------------------------
++; 1 for single camera, 2 for double camera
++;-------------------------------------------------------------------------------
++number_of_camera = 2
++;-------------------------------------------------------------------------------
++; 0 for no support for Time-division multiplexing
++; 1 for support which means you can open all camera at the same time
++;-------------------------------------------------------------------------------
++use_camera_multiplexing = 0
++;-------------------------------------------------------------------------------
++; CAMERA_FACING_BACK
++; gc2355
++;-------------------------------------------------------------------------------
++camera_id = 0
++
++;-------------------------------------------------------------------------------
++; 1 for CAMERA_FACING_FRONT
++; 0 for CAMERA_FACING_BACK
++;-------------------------------------------------------------------------------
++camera_facing = 0
++
++;-------------------------------------------------------------------------------
++; 1 for camera without isp(using built-in isp of Axx)
++; 0 for camera with isp
++;-------------------------------------------------------------------------------
++use_builtin_isp = 0
++
++;-------------------------------------------------------------------------------
++; camera orientation (0, 90, 180, 270)
++;-------------------------------------------------------------------------------
++camera_orientation = 90
++
++;-------------------------------------------------------------------------------
++; driver device name
++;-------------------------------------------------------------------------------
++camera_device = /dev/video0
++
++;-------------------------------------------------------------------------------
++; device id
++; for two camera devices with one CSI
++;-------------------------------------------------------------------------------
++device_id = 0
++
++used_preview_size = 1
++key_support_preview_size = 800x600,640x480,320x240,176x144
++key_default_preview_size = 800x600
++
++used_picture_size = 1
++key_support_picture_size = 2592x1944,1920x1080,1600x1200,1280x720,640x480,320x240
++key_default_picture_size = 2592x1944
++
++used_flash_mode = 1
++key_support_flash_mode = on,off,auto
++key_default_flash_mode = off
++
++used_color_effect=1
++key_support_color_effect = none,mono,negative,sepia,aqua
++key_default_color_effect = none
++
++used_frame_rate = 1
++key_support_frame_rate = 30
++key_default_frame_rate = 30
++
++used_focus_mode = 1
++key_support_focus_mode = auto,infinity,macro,fixed,continuous-video,continuous-picture
++key_default_focus_mode = auto
++
++used_scene_mode = 0
++key_support_scene_mode = auto,portrait,landscape,night,night-portrait,theatre,beach,snow,sunset,steadyphoto,fireworks,sports,party,candlelight,barcode
++key_default_scene_mode = auto
++
++used_white_balance = 1
++key_support_white_balance = auto,incandescent,fluorescent,warm-fluorescent,daylight,cloudy-daylight
++key_default_white_balance = auto
++
++used_exposure_compensation = 1
++key_max_exposure_compensation = 4
++key_min_exposure_compensation = -4
++key_step_exposure_compensation = 1
++key_default_exposure_compensation = 0
++
++used_zoom = 1
++key_zoom_supported = true
++key_smooth_zoom_supported = false
++key_zoom_ratios = 100,120,150,200,230,250,300
++key_max_zoom = 2
++key_default_zoom = 0
++key_horizonal_view_angle = 48.6
++key_vertical_view_angle = 37.0
++
++;-------------------------------------------------------------------------------
++; CAMERA_FACING_FRONT
++; gc0310
++;-------------------------------------------------------------------------------
++camera_id = 1
++
++;-------------------------------------------------------------------------------
++; 1 for camera without isp(using built-in isp of Axx)
++; 0 for camera with isp
++;-------------------------------------------------------------------------------
++use_builtin_isp = 0
++
++;-------------------------------------------------------------------------------
++; 1 for CAMERA_FACING_FRONT
++; 0 for CAMERA_FACING_BACK
++;-------------------------------------------------------------------------------
++camera_facing = 1
++
++;-------------------------------------------------------------------------------
++; camera orientation (0, 90, 180, 270)
++;-------------------------------------------------------------------------------
++camera_orientation = 270
++
++;-------------------------------------------------------------------------------
++; driver device name
++;-------------------------------------------------------------------------------
++camera_device = /dev/video1
++
++;-------------------------------------------------------------------------------
++; device id
++; for two camera devices with one CSI
++;-------------------------------------------------------------------------------
++device_id = 1
++
++used_preview_size = 1
++key_support_preview_size = 1600x1200,1280x720,640x480,320x240
++key_default_preview_size = 1600x1200
++
++;used_picture_size = 1
++;key_support_picture_size = 640x480,320x240
++;key_default_picture_size = 640x480
++
++;200w
++used_picture_size = 1
++key_support_picture_size = 1600x1200,1280x720,640x480,320x240
++key_default_picture_size = 1600x1200
++
++used_flash_mode = 0
++key_support_flash_mode = on,off,auto
++key_default_flash_mode = on
++
++used_color_effect= 1
++key_support_color_effect = none,mono,negative,sepia,aqua
++key_default_color_effect = none
++
++used_frame_rate = 1
++key_support_frame_rate = 30
++key_default_frame_rate = 30
++
++used_focus_mode = 0
++key_support_focus_mode = auto,infinity,macro,fixed
++key_default_focus_mode = auto
++
++used_scene_mode = 0
++key_support_scene_mode = auto,portrait,landscape,night,night-portrait,theatre,beach,snow,sunset,steadyphoto,fireworks,sports,party,candlelight,barcode
++key_default_scene_mode = auto
++
++used_white_balance = 0
++key_support_white_balance = auto,incandescent,fluorescent,warm-fluorescent,daylight,cloudy-daylight
++key_default_white_balance = auto
++
++used_exposure_compensation = 1
++key_max_exposure_compensation = 3
++key_min_exposure_compensation = -3
++key_step_exposure_compensation = 1
++key_default_exposure_compensation = 0
++
++used_zoom = 0
++key_zoom_supported = true
++key_smooth_zoom_supported = false
++key_zoom_ratios = 100,120,150,200,230,250,300
++key_max_zoom = 0
++key_default_zoom = 0
++key_horizonal_view_angle = 44.3
++key_vertical_view_angle = 33.9
++
++
+diff -ruN a/device/softwinner/apollo/apollo-t95h616/camera/config.mk b/device/softwinner/apollo/apollo-t95h616/camera/config.mk
+--- a/device/softwinner/apollo/apollo-t95h616/camera/config.mk	1970-01-01 01:00:00.000000000 +0100
++++ b/device/softwinner/apollo/apollo-t95h616/camera/config.mk	2023-06-16 03:51:04.000000000 +0200
+@@ -0,0 +1,9 @@
++LOCAL_MODULE_PATH := $(shell dirname $(lastword $(MAKEFILE_LIST)))
++
++# copy files
++PRODUCT_COPY_FILES += \
++    $(LOCAL_MODULE_PATH)/camera.cfg:$(TARGET_COPY_OUT_VENDOR)/etc/camera.cfg \
++    $(LOCAL_MODULE_PATH)/hawkview/sensor_list_cfg.ini:vendor/etc/hawkview/sensor_list_cfg.ini \
++    $(LOCAL_MODULE_PATH)/init.camera.rc:$(TARGET_COPY_OUT_VENDOR)/etc/init/init.camera.rc \
++	$(LOCAL_MODULE_PATH)/media_profiles.xml:$(TARGET_COPY_OUT_VENDOR)/etc/media_profiles_V1_0.xml \
++    frameworks/native/data/etc/android.hardware.camera.flash-autofocus.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.camera.flash-autofocus.xml \
+diff -ruN a/device/softwinner/apollo/apollo-t95h616/camera/hawkview/sensor_list_cfg.ini b/device/softwinner/apollo/apollo-t95h616/camera/hawkview/sensor_list_cfg.ini
+--- a/device/softwinner/apollo/apollo-t95h616/camera/hawkview/sensor_list_cfg.ini	1970-01-01 01:00:00.000000000 +0100
++++ b/device/softwinner/apollo/apollo-t95h616/camera/hawkview/sensor_list_cfg.ini	2023-06-16 03:51:04.000000000 +0200
+@@ -0,0 +1,108 @@
++#A100 sensor list configs
++#
++##################bus config######################
++#
++#used:                	0: not used, 	1: used;
++#csi_sel:              	0: mipi, 	    1:  parallel ;
++#device_sel:        	0: dev0, 	    1: dev1;
++#sensor_twi_id:twi id, for example: sensor_twi_id = 0
++#
++##################power configs###################
++#power_settings_enable: 0: enable the power settings in  sysconfig.fex;  1: enable the power settings in this file.
++#
++#iovdd                    The name of iovdd for this camera;
++#iovdd_vol                The voltage value of iovdd in uV;
++#
++###############detect sensor configs##############
++#
++#detect_sensor_num:    	  The number of sensors need be detected in this bus.
++#sensor_name[x]:          The sensor name in sensor driver.
++#sensor_twi_addr[x]:      The i2c address of this sensor.
++#sensor_type[x]:          The sensor type, 0: YUV, 1: RAW;
++#sensor_stby_mode[x]:  	  Not used;
++#sensor_hflip[x]          Horizontal flip;
++#sensor_vflip[x]          Vertical  flip;
++#act_name[x]              The VCM name in vcm driver, only RAW sensor need be configured;
++#act_twi_addr[x]          The i2c address of this VCM;
++#
++##################################################
++[rear_camera_cfg]
++
++#bus configs
++used                    = 1
++csi_sel                 = 0
++device_sel              = 0
++sensor_twi_id           = 0
++
++#power configs
++power_settings_enable   = 0
++iovdd                   = "iovdd-csi"
++iovdd_vol               = 2800000
++avdd                    = "avdd-csi"
++avdd_vol                = 2800000
++dvdd                    = "dvdd-csi"
++dvdd_vol                = 1800000
++afvdd                   = ""
++afvdd_vol               =
++
++#detect sensor configs
++detect_sensor_num       = 2
++
++sensor_name0            = "gc2385_mipi"
++sensor_twi_addr0        = 0x6e
++sensor_type0            = 1
++sensor_stby_mode0       = 0
++sensor_hflip0           = 1
++sensor_vflip0           = 1
++act_name0               =
++act_twi_addr0           =
++
++sensor_name1            = "gc2355_mipi"
++sensor_twi_addr1        = 0x78
++sensor_type1            = 1
++sensor_stby_mode1       = 0
++sensor_hflip1           = 1
++sensor_vflip1           = 1
++act_name1               =
++act_twi_addr1           =
++
++[front_camera_cfg]
++
++#bus configs
++used                    = 1
++csi_sel                 = 0
++device_sel              = 0
++sensor_twi_id           = 0
++
++#power configs
++power_settings_enable   = 0
++iovdd                   = "iovdd-csi"
++iovdd_vol               = 1800000
++avdd                    = "avdd-csi"
++avdd_vol                = 2800000
++dvdd                    = ""
++dvdd_vol                = 1800000
++afvdd                   = ""
++afvdd_vol               =
++
++
++#detect sensor configs
++detect_sensor_num       = 2
++
++sensor_name0            = "gc030a_mipi"
++sensor_twi_addr0        = 0x42
++sensor_type0            = 1
++sensor_stby_mode0       = 0
++sensor_hflip0           = 0
++sensor_vflip0           = 0
++act_name0               =
++act_twi_addr0           =
++
++sensor_name1            = "gc0310_mipi"
++sensor_twi_addr1        = 0x42
++sensor_type1            = 0
++sensor_stby_mode1       = 0
++sensor_hflip1           = 0
++sensor_vflip1           = 0
++act_name1               =
++act_twi_addr1           =
+diff -ruN a/device/softwinner/apollo/apollo-t95h616/camera/init.camera.rc b/device/softwinner/apollo/apollo-t95h616/camera/init.camera.rc
+--- a/device/softwinner/apollo/apollo-t95h616/camera/init.camera.rc	1970-01-01 01:00:00.000000000 +0100
++++ b/device/softwinner/apollo/apollo-t95h616/camera/init.camera.rc	2023-06-16 03:51:04.000000000 +0200
+@@ -0,0 +1,13 @@
++on late-fs
++### csi module
++    insmod /vendor/lib/modules/videobuf2-memops.ko
++    insmod /vendor/lib/modules/videobuf2-dma-contig.ko
++    insmod /vendor/lib/modules/vin_io.ko
++    insmod /vendor/lib/modules/gc5025_mipi.ko
++    insmod /vendor/lib/modules/gc2385_mipi.ko
++    insmod /vendor/lib/modules/gc030a_mipi.ko
++    insmod /vendor/lib/modules/sp5409_mipi.ko
++    insmod /vendor/lib/modules/c2590_mipi.ko
++    insmod /vendor/lib/modules/actuator.ko
++    insmod /vendor/lib/modules/dw9714_act.ko
++    insmod /vendor/lib/modules/vin_v4l2.ko
+diff -ruN a/device/softwinner/apollo/apollo-t95h616/camera/media_profiles.xml b/device/softwinner/apollo/apollo-t95h616/camera/media_profiles.xml
+--- a/device/softwinner/apollo/apollo-t95h616/camera/media_profiles.xml	1970-01-01 01:00:00.000000000 +0100
++++ b/device/softwinner/apollo/apollo-t95h616/camera/media_profiles.xml	2023-06-16 03:51:04.000000000 +0200
+@@ -0,0 +1,404 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- Copyright (C) 2010 The Android Open Source Project
++
++     Licensed under the Apache License, Version 2.0 (the "License");
++     you may not use this file except in compliance with the License.
++     You may obtain a copy of the License at
++
++          http://www.apache.org/licenses/LICENSE-2.0
++
++     Unless required by applicable law or agreed to in writing, software
++     distributed under the License is distributed on an "AS IS" BASIS,
++     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++     See the License for the specific language governing permissions and
++     limitations under the License.
++-->
++<!DOCTYPE MediaSettings [
++<!ELEMENT MediaSettings (CamcorderProfiles,
++                         EncoderOutputFileFormat+,
++                         VideoEncoderCap+,
++                         AudioEncoderCap+,
++                         VideoDecoderCap,
++                         AudioDecoderCap)>
++<!ELEMENT CamcorderProfiles (EncoderProfile+, ImageEncoding+, ImageDecoding, Camera)>
++<!ELEMENT EncoderProfile (Video, Audio)>
++<!ATTLIST EncoderProfile quality (high|low) #REQUIRED>
++<!ATTLIST EncoderProfile fileFormat (mp4) #REQUIRED>
++<!ATTLIST EncoderProfile duration (30|60) #REQUIRED>
++<!ELEMENT Video EMPTY>
++<!ATTLIST Video codec (h264|h263|m4v) #REQUIRED>
++<!ATTLIST Video bitRate CDATA #REQUIRED>
++<!ATTLIST Video width CDATA #REQUIRED>
++<!ATTLIST Video height CDATA #REQUIRED>
++<!ATTLIST Video frameRate CDATA #REQUIRED>
++<!ELEMENT Audio EMPTY>
++<!ATTLIST Audio codec (amrnb|amrwb|aac) #REQUIRED>
++<!ATTLIST Audio bitRate CDATA #REQUIRED>
++<!ATTLIST Audio sampleRate CDATA #REQUIRED>
++<!ATTLIST Audio channels (1|2) #REQUIRED>
++<!ELEMENT ImageEncoding EMPTY>
++<!ATTLIST ImageEncoding quality (90|80|70|60|50|40) #REQUIRED>
++<!ELEMENT ImageDecoding EMPTY>
++<!ATTLIST ImageDecoding memCap CDATA #REQUIRED>
++<!ELEMENT Camera EMPTY>
++<!ATTLIST Camera previewFrameRate CDATA #REQUIRED>
++<!ELEMENT EncoderOutputFileFormat EMPTY>
++<!ATTLIST EncoderOutputFileFormat name (mp4) #REQUIRED>
++<!ELEMENT VideoEncoderCap EMPTY>
++<!ATTLIST VideoEncoderCap name (h264) #REQUIRED>
++<!ATTLIST VideoEncoderCap enabled (true|false) #REQUIRED>
++<!ATTLIST VideoEncoderCap minBitRate CDATA #REQUIRED>
++<!ATTLIST VideoEncoderCap maxBitRate CDATA #REQUIRED>
++<!ATTLIST VideoEncoderCap minFrameWidth CDATA #REQUIRED>
++<!ATTLIST VideoEncoderCap maxFrameWidth CDATA #REQUIRED>
++<!ATTLIST VideoEncoderCap minFrameHeight CDATA #REQUIRED>
++<!ATTLIST VideoEncoderCap maxFrameHeight CDATA #REQUIRED>
++<!ATTLIST VideoEncoderCap minFrameRate CDATA #REQUIRED>
++<!ATTLIST VideoEncoderCap maxFrameRate CDATA #REQUIRED>
++<!ELEMENT AudioEncoderCap EMPTY>
++<!ATTLIST AudioEncoderCap name (amrnb|amrwb|aac|wma) #REQUIRED>
++<!ATTLIST AudioEncoderCap enabled (true|false) #REQUIRED>
++<!ATTLIST AudioEncoderCap minBitRate CDATA #REQUIRED>
++<!ATTLIST AudioEncoderCap maxBitRate CDATA #REQUIRED>
++<!ATTLIST AudioEncoderCap minSampleRate CDATA #REQUIRED>
++<!ATTLIST AudioEncoderCap maxSampleRate CDATA #REQUIRED>
++<!ATTLIST AudioEncoderCap minChannels (1|2) #REQUIRED>
++<!ATTLIST AudioEncoderCap maxChannels (1|2) #REQUIRED>
++<!ELEMENT VideoDecoderCap EMPTY>
++<!ATTLIST VideoDecoderCap name (wmv) #REQUIRED>
++<!ATTLIST VideoDecoderCap enabled (true|false) #REQUIRED>
++<!ELEMENT AudioDecoderCap EMPTY>
++<!ATTLIST AudioDecoderCap name (wma) #REQUIRED>
++<!ATTLIST AudioDecoderCap enabled (true|false) #REQUIRED>
++]>
++<!--
++     This file is used to declare the multimedia profiles and capabilities
++     on an android-powered device.
++-->
++<MediaSettings>
++<!-- Each camcorder profile defines a set of predefined configuration parameters -->
++  <!-- Back Camera -->
++  <!-- Front Camera -->
++  <CamcorderProfiles cameraId="0" >
++      <EncoderProfile quality="1080p" fileFormat="mp4" duration="30">
++          <Video codec="h264"
++                 bitRate="1500000"
++                 width="1920"
++                 height="1080"
++                 frameRate="20" />
++
++          <Audio codec="aac"
++                 bitRate="12200"
++                 sampleRate="8000"
++                 channels="1" />
++      </EncoderProfile>
++      <EncoderProfile quality="720p" fileFormat="mp4" duration="30">
++          <Video codec="h264"
++                 bitRate="1500000"
++                 width="1280"
++                 height="720"
++                 frameRate="30" />
++
++          <Audio codec="aac"
++                 bitRate="12200"
++                 sampleRate="8000"
++                 channels="1" />
++      </EncoderProfile>
++      <EncoderProfile quality="480p" fileFormat="mp4" duration="30">
++          <Video codec="h264"
++                 bitRate="1500000"
++                 width="640"
++                 height="480"
++                 frameRate="30" />
++
++          <Audio codec="aac"
++                 bitRate="12200"
++                 sampleRate="8000"
++                 channels="1" />
++      </EncoderProfile>
++      <EncoderProfile quality="high" fileFormat="mp4" duration="30">
++          <Video codec="h264"
++                 bitRate="1500000"
++                 width="1280"
++                 height="720"
++                 frameRate="30" />
++
++          <Audio codec="aac"
++                 bitRate="12200"
++                 sampleRate="8000"
++                 channels="1" />
++      </EncoderProfile>
++      <EncoderProfile quality="low" fileFormat="mp4" duration="30">
++          <Video codec="h264"
++                 bitRate="1500000"
++                 width="640"
++                 height="480"
++                 frameRate="30" />
++
++          <Audio codec="aac"
++                 bitRate="12200"
++                 sampleRate="8000"
++                 channels="1" />
++      </EncoderProfile>
++      <EncoderProfile quality="timelapse1080p" fileFormat="mp4" duration="30">
++          <Video codec="h264"
++                 bitRate="1500000"
++                 width="1920"
++                 height="1080"
++                 frameRate="30" />
++
++          <Audio codec="aac"
++                 bitRate="12200"
++                 sampleRate="8000"
++                 channels="1" />
++      </EncoderProfile>
++      <EncoderProfile quality="timelapse720p" fileFormat="mp4" duration="30">
++          <Video codec="h264"
++                 bitRate="1500000"
++                 width="1280"
++                 height="720"
++                 frameRate="30" />
++
++          <Audio codec="aac"
++                 bitRate="12200"
++                 sampleRate="8000"
++                 channels="1" />
++      </EncoderProfile>
++      <EncoderProfile quality="timelapse480p" fileFormat="mp4" duration="30">
++          <Video codec="h264"
++                 bitRate="1500000"
++                 width="640"
++                 height="480"
++                 frameRate="30" />
++
++          <Audio codec="aac"
++                 bitRate="12200"
++                 sampleRate="8000"
++                 channels="1" />
++      </EncoderProfile>
++      <EncoderProfile quality="timelapsehigh" fileFormat="mp4" duration="30">
++          <Video codec="h264"
++                 bitRate="1500000"
++                 width="1920"
++                 height="1080"
++                 frameRate="30" />
++
++          <Audio codec="aac"
++                 bitRate="12200"
++                 sampleRate="8000"
++                 channels="1" />
++      </EncoderProfile>
++      <EncoderProfile quality="timelapselow" fileFormat="mp4" duration="30">
++          <Video codec="h264"
++                 bitRate="1500000"
++                 width="640"
++                 height="480"
++                 frameRate="30" />
++
++          <Audio codec="aac"
++                 bitRate="12200"
++                 sampleRate="8000"
++                 channels="1" />
++      </EncoderProfile>
++
++      <ImageEncoding quality="90" />
++      <ImageEncoding quality="80" />
++      <ImageEncoding quality="70" />
++      <ImageDecoding memCap="20000000" />
++
++
++  </CamcorderProfiles>
++  <CamcorderProfiles cameraId="1">
++      <EncoderProfile quality="1080p" fileFormat="mp4" duration="30">
++          <Video codec="h264"
++                 bitRate="1500000"
++                 width="1920"
++                 height="1080"
++                 frameRate="20" />
++
++          <Audio codec="aac"
++                 bitRate="12200"
++                 sampleRate="8000"
++                 channels="1" />
++      </EncoderProfile>
++      <EncoderProfile quality="720p" fileFormat="mp4" duration="30">
++          <Video codec="h264"
++                 bitRate="1500000"
++                 width="1280"
++                 height="720"
++                 frameRate="30" />
++
++          <Audio codec="aac"
++                 bitRate="12200"
++                 sampleRate="8000"
++                 channels="1" />
++      </EncoderProfile>
++      <EncoderProfile quality="480p" fileFormat="mp4" duration="30">
++          <Video codec="h264"
++                 bitRate="1500000"
++                 width="640"
++                 height="480"
++                 frameRate="30" />
++
++          <Audio codec="aac"
++                 bitRate="12200"
++                 sampleRate="8000"
++                 channels="1" />
++      </EncoderProfile>
++      <EncoderProfile quality="qvga" fileFormat="mp4" duration="30">
++          <Video codec="h264"
++                 bitRate="1500000"
++                 width="640"
++                 height="480"
++                 frameRate="30" />
++
++          <Audio codec="aac"
++                 bitRate="12200"
++                 sampleRate="8000"
++                 channels="1" />
++      </EncoderProfile>
++      <EncoderProfile quality="low" fileFormat="mp4" duration="30">
++          <Video codec="h264"
++                 bitRate="1500000"
++                 width="640"
++                 height="480"
++                 frameRate="30" />
++
++          <Audio codec="aac"
++                 bitRate="12200"
++                 sampleRate="8000"
++                 channels="1" />
++      </EncoderProfile>
++      <EncoderProfile quality="high" fileFormat="mp4" duration="30">
++          <Video codec="h264"
++                 bitRate="1500000"
++                 width="1280"
++                 height="720"
++                 frameRate="30" />
++
++          <Audio codec="aac"
++                 bitRate="12200"
++                 sampleRate="8000"
++                 channels="1" />
++      </EncoderProfile>
++
++      <EncoderProfile quality="timelapse480p" fileFormat="mp4" duration="30">
++          <Video codec="h264"
++                 bitRate="1500000"
++                 width="640"
++                 height="480"
++                 frameRate="30" />
++
++          <Audio codec="aac"
++                 bitRate="12200"
++                 sampleRate="8000"
++                 channels="1" />
++      </EncoderProfile>
++      <EncoderProfile quality="timelapseqvga" fileFormat="mp4" duration="30">
++          <Video codec="h264"
++                 bitRate="1500000"
++                 width="640"
++                 height="480"
++                 frameRate="30" />
++
++          <Audio codec="aac"
++                 bitRate="12200"
++                 sampleRate="8000"
++                 channels="1" />
++      </EncoderProfile>
++      <EncoderProfile quality="timelapselow" fileFormat="mp4" duration="30">
++          <Video codec="h264"
++                 bitRate="1500000"
++                 width="640"
++                 height="480"
++                 frameRate="30" />
++
++          <Audio codec="aac"
++                 bitRate="12200"
++                 sampleRate="8000"
++                 channels="1" />
++      </EncoderProfile>
++      <EncoderProfile quality="timelapsehigh" fileFormat="mp4" duration="30">
++          <Video codec="h264"
++                 bitRate="1500000"
++                 width="640"
++                 height="480"
++                 frameRate="30" />
++
++          <Audio codec="aac"
++                 bitRate="12200"
++                 sampleRate="8000"
++                 channels="1" />
++      </EncoderProfile>
++      <ImageEncoding quality="90" />
++      <ImageEncoding quality="80" />
++      <ImageEncoding quality="70" />
++      <ImageDecoding memCap="20000000" />
++  </CamcorderProfiles>
++
++  <EncoderOutputFileFormat name="mp4" />
++
++<!--
++         If a codec is not enabled, it is invisible to the applications
++         In other words, the applications won't be able to use the codec
++         or query the capabilities of the codec at all if it is disabled
++    -->
++    <VideoEncoderCap name="h264" enabled="true"
++        minBitRate="64000" maxBitRate="3000000"
++        minFrameWidth="640" maxFrameWidth="1920"
++        minFrameHeight="480" maxFrameHeight="1080"
++        minFrameRate="1" maxFrameRate="30" />
++
++    <AudioEncoderCap name="aac" enabled="true"
++        minBitRate="12200" maxBitRate="51200"
++        minSampleRate="8000" maxSampleRate="44100"
++        minChannels="1" maxChannels="1" />
++
++    <AudioEncoderCap name="amrwb" enabled="true"
++        minBitRate="6600" maxBitRate="23050"
++        minSampleRate="16000" maxSampleRate="16000"
++        minChannels="1" maxChannels="1" />
++
++    <AudioEncoderCap name="amrnb" enabled="true"
++        minBitRate="5525" maxBitRate="12200"
++        minSampleRate="8000" maxSampleRate="8000"
++        minChannels="1" maxChannels="1" />
++    <!--
++    FIXME:
++        We do not check decoder capabilities at present
++        At present, we only check whether windows media is visible
++        for TEST applications. For other applications, we do
++        not perform any checks at all.
++    -->
++    <VideoDecoderCap name="wmv" enabled="true"/>
++    <AudioDecoderCap name="wma" enabled="true"/>
++
++    <!--
++        The VideoEditor Capability configuration:
++        - maxInputFrameWidth: maximum video width of imported video clip.
++        - maxInputFrameHeight: maximum video height of imported video clip.
++        - maxOutputFrameWidth: maximum video width of exported video clip.
++        - maxOutputFrameHeight: maximum video height of exported video clip.
++        - maxPrefetchYUVFrames: maximum prefetch YUV frames for encoder,
++        used to limit the amount of memory for prefetched YUV frames.
++        For this platform, it allows maximum 30MB(3MB per 1080p frame x 10
++        frames) memory.
++    -->
++    <!--
++        The VideoEditor Export codec profile and level values
++        correspond to the values in OMX_Video.h.
++        E.g. for h264, profile value 1 means OMX_VIDEO_AVCProfileBaseline
++        and  level 4096 means OMX_VIDEO_AVCLevel41.
++        Please note that the values are in decimal.
++        These values are for video encoder.
++    -->
++    <!--
++      Codec = h.264, Baseline profile, level 4.1
++    -->
++    <!--
++      Codec = h.263, Baseline profile, level 0
++    -->
++    <!--
++      Codec = mpeg4, Simple profile, level 5
++    -->
++</MediaSettings>
+diff -ruN a/device/softwinner/apollo/apollo-t95h616/system/dragon_toc.cfg b/device/softwinner/apollo/apollo-t95h616/system/dragon_toc.cfg
+--- a/device/softwinner/apollo/apollo-t95h616/system/dragon_toc.cfg	1970-01-01 01:00:00.000000000 +0100
++++ b/device/softwinner/apollo/apollo-t95h616/system/dragon_toc.cfg	2026-10-29 21:42:57.033036698 +0100
+@@ -0,0 +1,30 @@
++[key_rsa]
++key=RootKey_Level_0
++key=NOTWORLD_KEY
++key=PRIMARY_DEBUG_KEY
++key=SCPFirmwareContentCertPK
++key=SecondaryDebugCertPK
++key=SoCFirmwareContentCert_KEY
++key=TrustedFirmwareContentCertPK
++key=TWORLD_KEY
++key=NonTrustedFirmwareContentCertPK
++
++
++;item=Item_TOC_name,	Item_filename,	Key_Name
++[toc0]
++item=toc0,		sboot.bin,	RootKey_Level_0
++
++[toc1]
++rootkey=rootkey,			rootkey.der,	RootKey_Level_0
++item=monitor,				monitor.fex,	TrustedFirmwareContentCertPK
++item=optee,					optee.fex,	SoCFirmwareContentCert_KEY
++item=u-boot,				u-boot.fex,	NonTrustedFirmwareContentCertPK
++onlykey=vbmeta_a,			vbmeta.fex,	SCPFirmwareContentCertPK
++onlykey=vbmeta_b,			vbmeta.fex,	SCPFirmwareContentCertPK
++onlydata=dtbo,				p1.dtbo		NULL
++onlydata=dtb,				sunxi.fex       NULL
++;onlydata=board-cfg,			board.fex              NULL
++;onlylogo=logo,              bootlogo.bmp.lzma          NULL
++;onlylogo=shutdowncharge,    bempty.bmp.lzma            NULL
++;onlylogo=androidcharge,    battery_charge.bmp.lzma    NULL
++
+diff -ruN a/device/softwinner/apollo/apollo-t95h616/system/sys_partition.fex b/device/softwinner/apollo/apollo-t95h616/system/sys_partition.fex
+--- a/device/softwinner/apollo/apollo-t95h616/system/sys_partition.fex	1970-01-01 01:00:00.000000000 +0100
++++ b/device/softwinner/apollo/apollo-t95h616/system/sys_partition.fex	2023-06-16 03:51:04.000000000 +0200
+@@ -0,0 +1,185 @@
++;---------------------------------------------------------------------------------------------------
++; 说明： 脚本中的字符串区分大小写，用户可以修改"="后面的数值，但是不要修改前面的字符串
++;---------------------------------------------------------------------------------------------------
++
++;---------------------------------------------------------------------------------------------------
++;                                   固件下载参数配置
++;---------------------------------------------------------------------------------------------------
++;***************************************************************************************************
++;    mbr的大小, 以Kbyte为单位
++;***************************************************************************************************
++[mbr]
++    size = 16384
++
++;***************************************************************************************************
++;                                              分区配置
++;
++;
++;  partition 定义范例:
++;  [partition]                  ; //表示是一个分区
++;    name        = USERFS2      ; //分区名称
++;    size        = 16384        ; //分区大小，单位：默认为扇区，可支持B/K/M/G容量单位
++;    downloadfile= "123.fex"    ; //下载文件的路径和名称，可以使用相对路径，相对是指相对于image.cfg文件所在分区。也可以使用绝对路径
++;    keydata     = 1            ; //私有数据分区，重新量产数据将不丢失
++;    encrypt     = 1            ; //采用加密方式烧录，将提供数据加密，但损失烧录速度
++;    user_type   = ?            ; //私有用法
++;    verify      = 1            ; //要求量产完成后校验是否正确
++;
++; 注：1、name唯一, 不允许同名
++;     2、name最大12个字符
++;     3、size = 0, 将创建一个无大小的空分区
++;     4、为了安全和效率考虑，分区大小最好保证为16M字节的整数倍
++;***************************************************************************************************
++[partition_start]
++
++;------------------------------>bootloader resource
++[partition]
++    name         = bootloader_a
++    size         = 32M
++    downloadfile = "boot-resource.fex"
++    user_type    = 0x8000
++
++[partition]
++    name         = bootloader_b
++    size         = 32M
++    user_type    = 0x8000
++
++;------------------------------>uboot env
++[partition]
++    name         = env_a
++    size         = 256K
++    downloadfile = "env.fex"
++    user_type    = 0x8000
++
++[partition]
++    name         = env_b
++    size         = 256K
++    user_type    = 0x8000
++
++;------------------------------>boot
++[partition]
++    name         = boot_a
++    size         = 64M
++    downloadfile = "boot.fex"
++    user_type    = 0x8000
++
++[partition]
++    name         = boot_b
++    size         = 64M
++    user_type    = 0x8000
++
++[partition]
++    name         = vendor_boot_a
++    size         = 32M
++    downloadfile = "vendor_boot.fex"
++    user_type    = 0x8000
++
++[partition]
++    name         = vendor_boot_b
++    size         = 32M
++    user_type    = 0x8000
++
++;------------------------------>super
++[partition]
++    name         = super
++    size         = 3G
++    downloadfile = "super.fex"
++    user_type    = 0x8000
++
++;------------------------------>misc
++[partition]
++    name         = misc
++    size         = 16M
++    downloadfile = "misc.fex"
++    user_type    = 0x8000
++
++;------------------------------>store encryptable
++[partition]
++    name         = vbmeta_a
++    size         = 128K
++    downloadfile = "vbmeta.fex"
++    user_type    = 0x8000
++
++[partition]
++    name         = vbmeta_b
++    size         = 128K
++    user_type    = 0x8000
++
++[partition]
++    name         = vbmeta_system_a
++    size         = 64K
++    downloadfile = "vbmeta_system.fex"
++    user_type    = 0x8000
++
++[partition]
++    name         = vbmeta_system_b
++    size         = 64K
++    user_type    = 0x8000
++
++[partition]
++    name         = vbmeta_vendor_a
++    size         = 64K
++    downloadfile = "vbmeta_vendor.fex"
++    user_type    = 0x8000
++
++[partition]
++    name         = vbmeta_vendor_b
++    size         = 64K
++    user_type    = 0x8000
++
++;------------------------------>frp + empty
++[partition]
++    name         = frp
++    size         = 0.5M
++    ro           = 0
++    user_type    = 0x8000
++    keydata      = 0x8000
++
++[partition]
++    name         = empty
++    size         = 15M
++    ro           = 0
++    user_type    = 0x8000
++
++;------------------------------>metadata
++[partition]
++    name         = metadata
++    size         = 16M
++    user_type    = 0x8000
++
++;------------------------------>data image private
++[partition]
++    name         = private
++    size         = 16M
++    ro           = 0
++    user_type    = 0x8000
++
++;------------------------------>device tree overlay
++[partition]
++    name         = dtbo_a
++    size         = 2M
++    downloadfile = "dtbo.fex"
++    user_type    = 0x8000
++
++[partition]
++    name         = dtbo_b
++    size         = 2M
++    user_type    = 0x8000
++
++;------------------------------>media_data
++[partition]
++    name         = media_data
++    size         = 16M
++    user_type    = 0x8000
++
++;------------------------------>Reserve0
++;------------------------------>mmcblk0p16/nand0p16
++[partition]
++    name         = Reserve0
++    size         = 32768
++    user_type    = 0x8000
++
++;------------------------------>UDISK
++[partition]
++    name         = UDISK
++    user_type    = 0x8100
+diff -ruN a/device/softwinner/apollo/apollo-t95h616/system/vendor_ramdisk.modules b/device/softwinner/apollo/apollo-t95h616/system/vendor_ramdisk.modules
+--- a/device/softwinner/apollo/apollo-t95h616/system/vendor_ramdisk.modules	1970-01-01 01:00:00.000000000 +0100
++++ b/device/softwinner/apollo/apollo-t95h616/system/vendor_ramdisk.modules	2023-06-16 03:51:04.000000000 +0200
+@@ -0,0 +1 @@
++
+diff -ruN a/device/softwinner/apollo/apollo_t95h616.mk b/device/softwinner/apollo/apollo_t95h616.mk
+--- a/device/softwinner/apollo/apollo_t95h616.mk	1970-01-01 01:00:00.000000000 +0100
++++ b/device/softwinner/apollo/apollo_t95h616.mk	2026-10-29 14:12:34.710532621 +0100
+@@ -0,0 +1,6 @@
++# T95 H616, единая плата (H616-T95MAX-V4.0 AXP806 + платы AXP313A с eMMC) = плата longan configs/t95-h616. Общая часть: t95-common/t95_product.mk
++PRODUCT_PLATFORM_PATH := $(shell dirname $(lastword $(MAKEFILE_LIST)))
++PRODUCT_NAME := apollo_t95h616
++PRODUCT_DEVICE := apollo-t95h616
++PRODUCT_BOARD := t95-h616
++include $(PRODUCT_PLATFORM_PATH)/t95-common/t95_product.mk
+diff -ruN a/device/softwinner/apollo/t95-common/t95/axp1530-s2idle.rc b/device/softwinner/apollo/t95-common/t95/axp1530-s2idle.rc
+--- a/device/softwinner/apollo/t95-common/t95/axp1530-s2idle.rc	1970-01-01 01:00:00.000000000 +0100
++++ b/device/softwinner/apollo/t95-common/t95/axp1530-s2idle.rc	2026-10-29 14:12:49.389992902 +0100
+@@ -0,0 +1,5 @@
++# T95 единая плата (продукт apollo_t95h616): как t95/axp313-s2idle.rc, но только если PMIC — AXP313A (AXP1530).
++# ro.boot.t95_pmic берётся из DT (/firmware/android/t95_pmic): "axp1530" в базовом DT, "axp806" после dtbo AXP806 из U-Boot.
++# Приставка с AXP806 остаётся на deep (работает); на платах AXP313A пробуждение из deep не работает.
++on boot && property:ro.boot.t95_pmic=axp1530
++    write /sys/power/mem_sleep s2idle
+diff -ruN a/device/softwinner/apollo/t95-common/t95_product.mk b/device/softwinner/apollo/t95-common/t95_product.mk
+--- a/device/softwinner/apollo/t95-common/t95_product.mk	2026-10-20 11:09:26.843960738 +0200
++++ b/device/softwinner/apollo/t95-common/t95_product.mk	2026-10-29 14:12:49.397614473 +0100
+@@ -1,4 +1,5 @@
+-# T95 H616: общая часть продуктов apollo_t95axp806 (плата T95-AXP806) и apollo_t95axp313 (T95-AXP313, eMMC или NAND).
++# T95 H616: общая часть продуктов apollo_t95axp806 (плата T95-AXP806), apollo_t95axp313 (T95-AXP313, eMMC или NAND)
++# и apollo_t95h616 (единая плата t95-h616: AXP806 + AXP313A с eMMC).
+ # Makefile продукта задаёт PRODUCT_PLATFORM_PATH, PRODUCT_NAME, PRODUCT_DEVICE и PRODUCT_BOARD (= плата longan
+ # configs/<плата>) и подключает этот файл. До b22 был один продукт apollo_t95 (плата выбиралась через T95_BOARD).
+ T95_COMMON := $(PRODUCT_PLATFORM_PATH)/t95-common
+@@ -32,6 +33,10 @@
+ ifeq ($(PRODUCT_BOARD),t95-axp313)
+ PRODUCT_COPY_FILES += $(T95_DIR)/axp313-s2idle.rc:$(TARGET_COPY_OUT_SYSTEM_EXT)/etc/init/axp313-s2idle.rc
+ endif
++# единая плата t95-h616: s2idle только с PMIC AXP1530 (ro.boot.t95_pmic из DT, см. t95/axp1530-s2idle.rc)
++ifeq ($(PRODUCT_BOARD),t95-h616)
++PRODUCT_COPY_FILES += $(T95_DIR)/axp1530-s2idle.rc:$(TARGET_COPY_OUT_SYSTEM_EXT)/etc/init/axp1530-s2idle.rc
++endif
+ PRODUCT_PRODUCT_PROPERTIES += bluetooth.device.default_name=T95
+ # T95: adb также по сети (порт 5555), КОГДА пользователь включает "Отладка по USB" (выкл по умолчанию, авторизация на экране:
+ # ro.adb.secure=1). У T95 нет USB в режиме устройства (USB0 = host): без этого adb недоступен.
+diff -ruN a/longan/brandy/brandy-2.0/u-boot-2018/board/sunxi/board.c b/longan/brandy/brandy-2.0/u-boot-2018/board/sunxi/board.c
+--- a/longan/brandy/brandy-2.0/u-boot-2018/board/sunxi/board.c	2023-06-16 14:32:47.000000000 +0200
++++ b/longan/brandy/brandy-2.0/u-boot-2018/board/sunxi/board.c	2026-10-29 14:45:01.200816788 +0100
+@@ -35,6 +35,7 @@
+ #include <crc.h>
+ #include <environment.h>
+ #include <linux/libfdt.h>
++#include <malloc.h>
+ #include <nand.h>
+ #include <net.h>
+ #include <spl.h>
+@@ -84,6 +85,39 @@
+ 	return fdt_check_header(dtbo_base);
+ }
+ 
++/*
++ * T95: fdt_overlay_apply() изменяет dtbo, а при ошибке портит базовый fdt: применяем копию
++ * dtbo к копии fdt и записываем результат обратно только при успехе (при ошибке fdt остаётся
++ * прежним). Один и тот же dtbo (overlay PMIC из boot_package) применяется дважды: к fdt U-Boot
++ * здесь и к fdt ядра в sunxi_replace_fdt_v2(), которая заменяет working_fdt после board_init().
++ * Возвращает 0 = применён, 1 = не нужен (PMIC = pmu0 базового fdt), <0 = ошибка.
++ */
++int sunxi_overlay_apply_copy(void *fdt)
++{
++	u32 fdt_size, dtbo_size;
++	void *fdt_copy, *dtbo;
++	int ret;
++
++	if (!gd->new_dtbo || sunxi_overlay_apply_merged(fdt, gd->new_dtbo))
++		return 1;
++	fdt_size = fdt_totalsize(fdt);
++	dtbo_size = fdt_totalsize(gd->new_dtbo);
++	fdt_copy = malloc(fdt_size);
++	dtbo = malloc(dtbo_size);
++	if (!fdt_copy || !dtbo) {
++		free(fdt_copy);
++		free(dtbo);
++		return -1;
++	}
++	memcpy(fdt_copy, fdt, fdt_size);
++	memcpy(dtbo, gd->new_dtbo, dtbo_size);
++	ret = fdt_overlay_apply_verbose(fdt_copy, dtbo);
++	if (!ret)
++		memcpy(fdt, fdt_copy, fdt_size);
++	free(fdt_copy);
++	free(dtbo);
++	return ret ? -1 : 0;
++}
+ #endif
+ 
+ void i2c_init_board(void)
+@@ -265,12 +299,11 @@
+ 	if (get_boot_work_mode() != WORK_MODE_BOOT) {
+ 		return 0;
+ 	}
+-	if (!sunxi_overlay_apply_merged(working_fdt, gd->new_dtbo)) {
+-		pr_err("sunxi overlay merged %sqv\n",
+-			(fdt_overlay_apply_verbose(working_fdt, gd->new_dtbo) ? "fail":"ok"));
+-	} else {
+-		pr_msg("not need merged sunxi overlay\n");
+-	}
++	ret = sunxi_overlay_apply_copy(working_fdt);
++	if (ret <= 0)
++		pr_force("sunxi overlay merged %s\n", ret ? "fail" : "ok");
++	else
++		pr_force("not need merged sunxi overlay\n");
+ #endif
+ 
+ 	return 0;
+diff -ruN a/longan/brandy/brandy-2.0/u-boot-2018/board/sunxi/sunxi_replace_fdt.c b/longan/brandy/brandy-2.0/u-boot-2018/board/sunxi/sunxi_replace_fdt.c
+--- a/longan/brandy/brandy-2.0/u-boot-2018/board/sunxi/sunxi_replace_fdt.c	2023-06-16 14:32:47.000000000 +0200
++++ b/longan/brandy/brandy-2.0/u-boot-2018/board/sunxi/sunxi_replace_fdt.c	2026-10-29 14:10:19.974489656 +0100
+@@ -10,6 +10,8 @@
+ #include <sys_partition.h>
+ #include <image.h>
+ #include <android_image.h>
++#include <sunxi_board.h>
++#include <spare_head.h>
+ 
+ DECLARE_GLOBAL_DATA_PTR;
+ 
+@@ -302,6 +304,15 @@
+ 	sunxi_get_dtb(&dtb_data, &dtb_len);
+ 	dtb_data = (fdt_check_header((void *)dtb_data) < 0 ? (CONFIG_SYS_TEXT_BASE + SUNXI_DTB_OFFSET) : dtb_data);
+ 	pr_msg("replace_fdt %s addr:0x%x\n", __sunxi_replace_fdt_v2((void *)dtb_data) < 0 ? "fail" : "success", dtb_data);
++#ifdef CONFIG_SUNXI_OVERLAY
++	/* T95: overlay PMIC, применённый в board_init(), попал только в fdt U-Boot: применяем его и к fdt ядра */
++	if (get_boot_work_mode() == WORK_MODE_BOOT) {
++		int ret = sunxi_overlay_apply_copy(working_fdt);
++
++		pr_force("kernel fdt: %s\n", ret > 0 ? "not need merged sunxi overlay" :
++			 ret ? "sunxi overlay merged fail" : "sunxi overlay merged ok");
++	}
++#endif
+ 	return 0;
+ }
+ 
+diff -ruN a/longan/brandy/brandy-2.0/u-boot-2018/include/sunxi_board.h b/longan/brandy/brandy-2.0/u-boot-2018/include/sunxi_board.h
+--- a/longan/brandy/brandy-2.0/u-boot-2018/include/sunxi_board.h	2023-06-16 14:32:49.000000000 +0200
++++ b/longan/brandy/brandy-2.0/u-boot-2018/include/sunxi_board.h	2026-10-29 14:10:32.202574619 +0100
+@@ -242,8 +242,10 @@
+ 
+ #ifdef CONFIG_SUNXI_OVERLAY
+ int sunxi_overlay_apply_merged(void *dtb_base, void *dtbo_base);
++int sunxi_overlay_apply_copy(void *fdt);
+ #else
+ static inline int sunxi_overlay_apply_merged(void *dtb_base, void *dtbo_base) {return -1; }
++static inline int sunxi_overlay_apply_copy(void *fdt) {return 1; }
+ #endif
+ 
+ #ifdef CONFIG_SUNXI_SWITCH_SYSTEM

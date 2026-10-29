@@ -1,0 +1,58 @@
+diff -ruN a/device/softwinner/apollo/t95-common/apps/Android.mk b/device/softwinner/apollo/t95-common/apps/Android.mk
+--- a/device/softwinner/apollo/t95-common/apps/Android.mk	2026-10-31 09:56:30.135335911 +0100
++++ b/device/softwinner/apollo/t95-common/apps/Android.mk	2026-10-31 09:56:30.143975063 +0100
+@@ -21,11 +21,13 @@
+ LOCAL_OVERRIDES_PACKAGES := TvLauncher Launcher3 Launcher3QuickStep
+ include $(BUILD_PREBUILT)
+ 
+-# Arc Launcher 1.0.10 (форк LTvLauncher/FLauncher, GPL-3.0), ПЕРЕСОБРАН (патч 12, Flutter 3.41.9, вариант "play" =
++# Arc Launcher 1.2.0 (форк LTvLauncher/FLauncher, GPL-3.0), ПЕРЕСОБРАН (патч 17a, Flutter 3.41.9, вариант "play" =
+ # без самообновления, REQUEST_INSTALL_PACKAGES нет). Изменения: тёмный фон по умолчанию (viciousStance); с b23
+ # (1.0.10-t95.4) нет «Избранного» по умолчанию (главный экран сразу показывает «All Apps») и подсветка фокуса всегда
+ # включена (alwaysTraditional: с мышью Logitech M590 она пропадала). Анимация рамки выключена по умолчанию (0% CPU).
+ # С b21 вместо FLauncher (модуль выше оставлен, но не входит в PRODUCT_PACKAGES). Подписывается сборкой системным ключом.
++# 1.2.0-t95.1 (b25): база upstream 1.2.0 + те же изменения + settingsActivity заставки com.omeda.arc/.MainActivity
++# (в upstream там до сих пор me.efesser.flauncher/.MainActivity).
+ include $(CLEAR_VARS)
+ LOCAL_MODULE := ArcLauncher
+ LOCAL_MODULE_CLASS := APPS
+@@ -74,7 +76,7 @@
+ LOCAL_REQUIRED_MODULES := libwebviewchromium_loader libwebviewchromium_plat_support
+ include $(BUILD_PREBUILT)
+ 
+-# SmartTube 32.56 stable arm64 (org.smarttube.stable, подпись "Yurii L" 109735aa...), sha256 cc53f1ae...c864
++# SmartTube 32.68 stable arm64 (org.smarttube.stable, подпись "Yurii L" 109735aa...), sha256 0a3d3f02...4cf3
+ include $(CLEAR_VARS)
+ LOCAL_MODULE := SmartTube
+ LOCAL_MODULE_CLASS := APPS
+@@ -136,7 +138,7 @@
+ endef
+ $(foreach s,$(DOWNLOADER_SPLITS),$(eval $(call t95-downloader-split,$(s))))
+ 
+-# F-Droid 2.0.1 (org.fdroid.fdroid, официальная подпись "Ciaran Gultnieks" 43238d51...ccab), sha256 83d3fe52...3778
++# F-Droid 2.0.2 (org.fdroid.fdroid, официальная подпись "Ciaran Gultnieks" 43238d51...ccab), sha256 19d51fad...7b52
+ # обычное приложение (не privileged): каждая установка спрашивает подтверждение; обновляется само. Библиотека не сжата.
+ include $(CLEAR_VARS)
+ LOCAL_MODULE := FDroid
+diff -ruN a/device/softwinner/apollo/t95-common/overlay/frameworks/base/core/res/res/values/config.xml b/device/softwinner/apollo/t95-common/overlay/frameworks/base/core/res/res/values/config.xml
+--- a/device/softwinner/apollo/t95-common/overlay/frameworks/base/core/res/res/values/config.xml	2026-10-31 09:56:30.135411629 +0100
++++ b/device/softwinner/apollo/t95-common/overlay/frameworks/base/core/res/res/values/config.xml	2026-10-31 09:56:30.143843551 +0100
+@@ -9,4 +9,6 @@
+         <item>power</item>
+         <item>restart</item>
+     </string-array>
++    <!-- заставка по умолчанию: часы Arc (у AW стоит com.android.dreams.web, которого нет в прошивке) -->
++    <string name="config_dreamsDefaultComponent" translatable="false">com.omeda.arc/com.omeda.arc.ClockScreensaverService</string>
+ </resources>
+diff -ruN a/device/softwinner/apollo/t95-common/t95/fd655.sh b/device/softwinner/apollo/t95-common/t95/fd655.sh
+--- a/device/softwinner/apollo/t95-common/t95/fd655.sh	2026-10-31 09:56:30.135427972 +0100
++++ b/device/softwinner/apollo/t95-common/t95/fd655.sh	2026-10-31 09:56:30.143810178 +0100
+@@ -28,7 +28,7 @@
+ send() { start; wbyte $1; wbyte $2; stop; }
+ # таблица сегментов из стокового драйвера (нестандартная разводка T95)
+ seg() { case "$1" in
+-  0|O|o) echo 63;; 1) echo 48;; 2) echo 91;; 3) echo 121;; 4) echo 116;; 5) echo 109;; 6) echo 111;; 7) echo 56;;
++  0|O) echo 63;; o) echo 99;; 1) echo 48;; 2) echo 91;; 3) echo 121;; 4) echo 116;; 5) echo 109;; 6) echo 111;; 7) echo 56;;
+   8) echo 127;; 9) echo 125;; a|A) echo 119;; b|B) echo 103;; c) echo 88;; C) echo 57;; d|D) echo 94;;
+   e|E) echo 121;; f|F) echo 113;; t|T) echo 71;; *) echo 0;; esac; }
+ text() { s="$1"; n=0

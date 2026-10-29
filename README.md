@@ -25,11 +25,11 @@ servers. Instead of cleaning it, I rebuilt Android 12 from scratch, starting fro
   release); the closed-source Allwinner vendor blobs (GPU, video, Wi-Fi) cannot be updated.
 - All system apps and secure boot (toc0/toc1/vbmeta) are signed with **my own keys**, not with the public
   Allwinner SDK keys that anyone can use
-- **Arc Launcher** 1.0.10 (since b21; a GPL fork of LTvLauncher/FLauncher), rebuilt without the self-updater and
+- **Arc Launcher** 1.2.0 (since b25; 1.0.10 from b21 to b24; a GPL fork of LTvLauncher/FLauncher), rebuilt without the self-updater and
   with a dark default background. It uses 0% CPU when idle and keeps the remote focus when a Bluetooth mouse connects
   during boot. Since b23 the home screen opens with *All Apps* already visible (no default Favorites dock, which
   pushed the apps below the screen) and the focus frame is always drawn (with some mice connected, e.g. a Logitech
-  M590, it disappeared and the remote seemed dead). Up to b19 the launcher was **FLauncher** (osrosal fork 2025.07.001) with the card highlight animation
+  M590, it disappeared and the remote seemed dead). 1.2.0 adds Watch Next and Unsplash/Reddit wallpapers. Up to b19 the launcher was **FLauncher** (osrosal fork 2025.07.001) with the card highlight animation
   off by default (with it on, it redraws at 60 fps and keeps one core at ~95%). Arc is in English only for now.
 - Apps: **F-Droid**, **SmartTube**, **VLC**, **Material Files**, **Downloader** (AFTVnews) and
   **Cromite 153** as WebView (replacing the old AOSP WebView 91)
@@ -43,6 +43,11 @@ servers. Instead of cleaning it, I rebuilt Android 12 from scratch, starting fro
   boot" options). Allwinner's background manager (Awbms, `awbms_config`) blocked `BOOT_COMPLETED` and background
   services for every app not on its whitelist. The build is now split by board: the image names, the Android
   product and the device name say which board they are for (see [Flashing](#flashing))
+- Since b25: one image for both Wi-Fi variants of the H616-T95MAX-V4.0 (UWE5622 and XR819): the kernel sets the
+  voltage mode of the Wi-Fi pin bank PG from the voltage detected by the SoC (kernel `0006`). The *System sounds*
+  switch is back in *Settings → Device Preferences → Display & Sound* (Allwinner had removed it) and click sounds are
+  off by default. The default screensaver is the Arc Launcher clock (before, it was a screensaver missing from the
+  firmware). The front display shows `boot` instead of `bOOt`
 - IR remote (it also wakes the box from sleep), FD655 front display (clock and LAN/Wi-Fi/USB icons),
   device name `T95_h616`
 - **Power off from the remote**: a long press on power opens a *Power off / Restart* menu, which you can
@@ -77,24 +82,38 @@ remote, FD655 display, both USB ports.
 **Not tested:** HDMI audio, CEC.
 
 A second board, **H616-T95MAX-AXP313A-V2.0** (PMIC **AXP313A**, Wi-Fi/BT **BCM43342**, 2 GB), has its own board
-folder `configs/t95-axp313`, its own product `apollo_t95axp313` and its own **release** (`axp313-final`, before: test
-pre-releases `axp313-*`), tested by a 4PDA user on the **eMMC** version. Since axp313-test11 sleep and wake-up work there too: the Wi-Fi host-wake
+folder `configs/t95-axp313`, its own product `apollo_t95axp313` and its own **release** (`axp313-b25-final`, before:
+`axp313-final` and the test pre-releases `axp313-*`), tested by a 4PDA user on the **eMMC** version. Since axp313-test11 sleep and wake-up work there too: the Wi-Fi host-wake
 interrupt blocked light sleep (s2idle), so it is no longer a wakeup source (kernel `0005`). The **NAND** version of
 that board does not flash yet (the U-Boot NAND driver of the BSP does not start the chip).
 
 A third board, **H61X-T95MAX-AXP313A-V3.0** (PMIC **AXP313A**, Wi-Fi **XR819**, 2.4 GHz only, no Bluetooth, eMMC), uses the same
 folder and product as the AXP313A board with three device-tree changes (`tools/t95_axp313_xr819_dts.sh`): Wi-Fi SDIO bank PG
 at 3.3 V as in the stock X29 firmware, `sdc1` without UHS modes, `device_type = "btlpm"` for `wireless_switch.ko`. Its own
-**release** is `axp313-xr819-final` (before: test pre-releases `axp313-xr819-test*`), tested by a 4PDA user (Wi-Fi and LAN).
+**release** is `axp313-xr819-b25-final` (before: `axp313-xr819-final` and the test pre-releases `axp313-xr819-test*`), tested
+by a 4PDA user (Wi-Fi and LAN). Since b25 the AXP313A board folder keeps the eMMC at 3.3 V in the bootloader (`sdc_io_1v8 = 0`,
+no HS200/HS400 while flashing), as the stock iconBIT A32 firmware does: on that user's box `axp313-xr819-final` stopped
+flashing at 7% ("fed_nand"); the test build `axp313-xr819-io33` with this change flashed. In Android the eMMC works as before.
 
-The same three changes on `configs/t95-axp806` give **b24-xr819**: a **test pre-release** for the **H616-T95MAX-V4.0**
-(PMIC AXP806/AXP305) fitted with an **XR819** chip instead of the UWE5622 module (2.4 GHz only, no Bluetooth). Otherwise
-identical to `b24-final`; not tested yet.
+Some **H616-T95MAX-V4.0** boards (PMIC AXP806/AXP305) have an **XR819** chip instead of the UWE5622 module (2.4 GHz only,
+no Bluetooth). Since b25 the same `b25-final` image covers them: no fixed voltage for bank PG (`allwinner,auto-power-mode`
+with kernel `0006`) and `device_type = "btlpm"` are now in `configs/t95-axp806`. Before, the test pre-release
+`b24-xr819` had the three XR819 changes. Not yet confirmed by a user with XR819.
+
+**Single image (test pre-release `t95-h616-u3`).** Board folder `configs/t95-h616`, product `apollo_t95h616`: one image for
+the H616-T95MAX-V4.0 and the AXP313A boards with eMMC, as the stock iconBIT A32 firmware does. The kernel device tree is
+the AXP313A (AXP1530) one; when U-Boot finds an AXP806 it applies the overlay `dtbo/p1.dts` to its own device tree and,
+with patch 16, also to the kernel one. U-Boot takes the flashing voltages from the `axp806_power_sply` /
+`axp1530_power_sply` node of the PMIC it finds. Android reads the result in `ro.boot.t95_pmic` and uses light sleep
+(s2idle) only on AXP1530. Works on my V4.0 and on a user's H616-T95MAX-AXP313A-V2.0. On one H61X-T95MAX-AXP313A-V3.0 with XR819
+it does not flash: it stops at 7%, and after that failed attempt the box accepts only the stock iconBIT firmware, then our
+per-board image again. So the per-board images stay the releases.
 
 Look at the name printed on the board: **H616-T95MAX-V4.0** (this box, PMIC AXP806 or AXP305) = files `T95-AXP806-…`,
 **H616-T95MAX-AXP313A-V2.0** with eMMC = files `T95-AXP313-eMMC-…` (the NAND version is not supported yet),
-**H61X-T95MAX-AXP313A-V3.0** (Wi-Fi XR819) = files `T95-AXP313-eMMC-a12-xr819-final-…`,
-**H616-T95MAX-V4.0** with Wi-Fi XR819 instead of UWE5622 = test files `T95-AXP806-a12-b24-xr819-…`.
+**H61X-T95MAX-AXP313A-V3.0** (Wi-Fi XR819) = files `T95-AXP313-eMMC-a12-b25-xr819-final-…`,
+**H616-T95MAX-V4.0** with Wi-Fi XR819 instead of UWE5622 = the same files `T95-AXP806-…` (since b25).
+The single test image `T95-H616-…` (pre-release `t95-h616-u3`) is for all of them except NAND.
 Internally the two boards are called **T95-AXP806** and **T95-AXP313** (`-eMMC` / `-NAND`). Never flash an image made
 for one board on the other: the file names say which board they are for (`T95-AXP806-…`, `T95-AXP313-eMMC-…`;
 b23 and test builds: `update.T95-…`; up to b22: `t95axp806` / `t95axp313`).
@@ -107,10 +126,10 @@ b23 and test builds: `update.T95-…`; up to b22: `t95axp806` / `t95axp313`).
 
 1. **Back up your current firmware** if you have it, or find the stock firmware for your revision.
 2. You need a USB A-A (male-male) cable and PhoenixSuit (Windows) or OpenixSuit (Linux).
-3. Download from [Releases](../../releases) the image for your board: `T95-AXP806-a12-b24-final-user.img.xz`
-   (H616-T95MAX-V4.0, release `b24-final`) or `T95-AXP313-eMMC-a12-final-user.img.xz` (H616-T95MAX-AXP313A-V2.0 with eMMC,
-   release `axp313-final`) or `T95-AXP313-eMMC-a12-xr819-final-user.img.xz` (H61X-T95MAX-AXP313A-V3.0, release
-   `axp313-xr819-final`), or the `-magisk-` file
+3. Download from [Releases](../../releases) the image for your board: `T95-AXP806-a12-b25-final-user.img.xz`
+   (H616-T95MAX-V4.0 with UWE5622 or XR819, release `b25-final`) or `T95-AXP313-eMMC-a12-b25-final-user.img.xz`
+   (H616-T95MAX-AXP313A-V2.0 with eMMC, release `axp313-b25-final`) or `T95-AXP313-eMMC-a12-b25-xr819-final-user.img.xz`
+   (H61X-T95MAX-AXP313A-V3.0, release `axp313-xr819-b25-final`), or the `-magisk-` file
    of the same release for root, and decompress it (7-Zip on Windows, `xz -d` on Linux),
    then select the `.img` and choose a full flash (Full Erase).
 4. With the box off, hold the reset button (inside the AV jack), connect USB to the PC, and release the
@@ -120,8 +139,8 @@ b23 and test builds: `update.T95-…`; up to b22: `t95axp806` / `t95axp313`).
 Without a cable, you can use a microSD card prepared with PhoenixCard (*Product* mode).
 **Flashing erases all data on the box.** The `.img` is always a full flash image, not an update that keeps your data.
 
-Since b23 the Android product and device names include the board (`apollo_t95axp806` / `apollo_t95axp313`, before:
-`apollo_t95` for both), so an OTA package made for one board is rejected on the other. Coming from b22 or older,
+Since b23 the Android product and device names include the board (`apollo_t95axp806` / `apollo_t95axp313`, single test
+image: `apollo_t95h616`; before: `apollo_t95` for both), so an OTA package made for one board is rejected on the other. Coming from b22 or older,
 flash the full image once.
 
 ### Going back to stock or another firmware
@@ -167,7 +186,7 @@ The official Orange Pi Zero 3 sources, **H618-Android12-Src** (Orange Pi Google 
 `H618-Android12-Src.tar.gz{aa..ar}`; the md5 from the Orange Pi folder matches).
 In the sources the Zero 3 board is called **p2** (product `apollo_p2`). The repository adds the board configurations
 **t95-axp806** and **t95-axp313** (longan folders describing the hardware: device tree, DRAM, PMIC; based on p2) and the products **apollo_t95axp806** and **apollo_t95axp313** (Android),
-which share `device/softwinner/apollo/t95-common`. Build host: Ubuntu 22.04.
+plus the single-image test board **t95-h616** / **apollo_t95h616**, which share `device/softwinner/apollo/t95-common`. Build host: Ubuntu 22.04.
 
 **Signing keys are not included.** Generate your own (`tools/gen_app_keys.sh` for the app keys,
 `dragonsecboot` for `toc_keys`).
@@ -187,11 +206,16 @@ which share `device/softwinner/apollo/t95-common`. Build host: Ubuntu 22.04.
 | `patches/10-b19-t95-axp313.patch` | b19: DocumentsUI (the `TvdFileManager` override removed it), SELinux: apps read the CPU temperature (`sysfs_thermal`, `sysfs_temp`). For the AXP313A board: `PRODUCT_BOARD` from `T95_BOARD` (replaced by the two products of patch 14), light sleep s2idle (`axp313-s2idle.rc`, `/sys/power/mem_sleep` → `sysfs_power`), BCM43342 in `libhwinfo.c`, AP6334 `config.txt` with ccode XZ/11. Test builds only (`T95_LOGGER=1`): log collector `t95log` (dmesg/logcat to `/sdcard/T95_LOG`) |
 | `patches/11-b21-t95.patch` | b20/b21: animations 0.5x by default (SettingsProvider overlay `defaults.xml`), Bluetooth LE local privacy only if the controller supports LL privacy (`btif_dm.cc`), Arc Launcher in place of FLauncher (`apps/Android.mk`, `apollo_t95.mk`), VLC from F-Droid. The wallpaper is made by `tools/t95_wallpaper.py` |
 | `patches/12-arclauncher-1.0.10-t95.patch` | [Arc Launcher](https://github.com/meddouribadis/arclauncher) (tag 1.0.10): dark default background; since b23 (1.0.10-t95.4) no default Favorites (the home screen opens on All Apps) and the focus highlight always on (`FocusHighlightStrategy.alwaysTraditional`). Build: Flutter 3.41.9, `flutter build apk --release --flavor play --split-per-abi --target-platform android-arm64` (the `play` flavor has no self-updater) |
-| `patches/07-kernel-5.4.302/` | kernel 5.4.125 → 5.4.302 (since b18): ACK merge script, resolved conflicts, 0001–0003 (0003 = fix for the hang after sleep), AXP313A board only: 0004 = BCM43342 in bcmdhd, 0005 = Wi-Fi host-wake no longer a wakeup source (`oob_wake=0`, fixes s2idle). See [Kernel](#kernel) |
+| `patches/07-kernel-5.4.302/` | kernel 5.4.125 → 5.4.302 (since b18): ACK merge script, resolved conflicts, 0001–0003 (0003 = fix for the hang after sleep), AXP313A board only: 0004 = BCM43342 in bcmdhd, 0005 = Wi-Fi host-wake no longer a wakeup source (`oob_wake=0`, fixes s2idle); since b25 (t95-axp806, t95-h616): 0006 = voltage mode of pin banks without `vcc-pX` from `PIO_POW_VAL`. See [Kernel](#kernel) |
 | `patches/13-b23-t95.patch` | b23: Allwinner background manager without blocks (`device/softwinner/common/config/awbms_config`: `blockBroadcast`, `skipService` false), so user apps receive `BOOT_COMPLETED` and can start services; Arc comment in `apps/Android.mk` |
 | `patches/14-split-boards-t95axp806-t95axp313.patch` | b23: one product per board. `apollo_t95.mk` → `t95-common/t95_product.mk` (shared), new `apollo_t95axp806.mk` / `apollo_t95axp313.mk`, device folders `apollo-t95axp806` / `apollo-t95axp313` (BoardConfig, `system/`, camera), apps, overlay, sepolicy, `t95/`, `t95log/` moved to `t95-common`. Contains renames: apply it with `git apply` |
 | `patches/15-b24-fd655-boot.patch` | b24: the front display shows `boot` a few seconds after power-on, as the stock firmware does (`fd655.rc`: `on early-init`); before, it stayed dark until the clock service started (10–15 s) |
-| `longan/device/config/chips/h618/configs/t95-axp313/` | board folder for H616-T95MAX-AXP313A-V2.0: AXP313A (as on the Zero 3), DRAM from the stock A29 firmware, AP6334 32 kHz clock, NAND pins; generated by the two `t95_axp313_*` tools |
+| `longan/device/config/chips/h618/configs/t95-axp313/` | board folder for H616-T95MAX-AXP313A-V2.0: AXP313A (as on the Zero 3), DRAM from the stock A29 firmware, AP6334 32 kHz clock, NAND pins; since b25 eMMC at 3.3 V in the bootloader (`sdc_io_1v8 = 0`, `pc_bias` 3300, as iconBIT A32); generated by the two `t95_axp313_*` tools |
+| `patches/16-t95h616-unica.patch` | single test image (pre-release `t95-h616-u3`): product `apollo_t95h616` / device `apollo-t95h616` (`dragon_toc.cfg` with the `dtbo` item in toc1, because the box boots secure), `axp1530-s2idle.rc` (s2idle only when `ro.boot.t95_pmic` = `axp1530`), U-Boot: the PMIC overlay of the boot_package is applied to a copy of the device tree (on error the device tree stays as it was) and also to the kernel device tree (`sunxi_replace_fdt.c`). On the per-board images the U-Boot change does nothing (no `dtbo`, or PMIC = `pmu0`) |
+| `longan/device/config/chips/h618/configs/t95-h616/` | board folder of the single image: `sys_config.fex` = t95-axp806 (DRAM `select_mode` 0 as iconBIT A32) + `[axp1530_power_sply]`; kernel `board.dts` = t95-axp313 (AXP1530) + bank PG auto, `device_type = "btlpm"`, `/firmware/android/t95_pmic`; `dtbo/p1.dts` = AXP806 overlay (regulators of t95-axp806); `uboot-board.dts` with `axp806_power_sply` / `axp1530_power_sply` |
+| `patches/16a-b25-system-sounds.patch` | b25: *System sounds* switch back in *Display & Sound* (`DisplaySoundFragment.java`: Allwinner removed the preference), click sounds off by default (SettingsProvider overlay `def_sound_effects_enabled`) |
+| `patches/17-b25-t95.patch` | b25: default screensaver = Arc Launcher clock (`config_dreamsDefaultComponent`; Allwinner sets `com.android.dreams.web`, which is not in the firmware), front display `boot` with a lowercase `o` (`fd655.sh`), `apps/Android.mk` comments for Arc 1.2.0, SmartTube 32.68, F-Droid 2.0.2 |
+| `patches/17a-arclauncher-1.2.0-t95.patch` | [Arc Launcher](https://github.com/meddouribadis/arclauncher) (tag 1.2.0), since b25 (1.2.0-t95.1): the changes of patch 12 + `screensaver.xml` with `settingsActivity` `com.omeda.arc/.MainActivity` (upstream still points to `me.efesser.flauncher`). Build as patch 12 |
 | `tools/bl31_t95_patch.py` | creates `bin/bl31_<board>.bin` (`bl31_t95-axp806.bin`, `bl31_t95-axp313.bin`; `pack` picks it by board name) from `bl31.bin`: skips the H618-only "hardware check" (0x1F4C). With `--fakeoff` it also adds the old power-off workaround of b13–b15 (PSCI SYSTEM_OFF, 0x1CF0..0x1D00), not needed since b16 |
 | `tools/t95_board_dts.py` | generates the t95-axp806 `board.dts` from p2 (output already in `configs/t95-axp806`) |
 | `tools/t95_sys_config.py` | generates the t95-axp806 `sys_config.fex` from p2 + the stock T95 `sys_config.fex` |
@@ -200,7 +224,7 @@ which share `device/softwinner/apollo/t95-common`. Build host: Ubuntu 22.04.
 | `tools/t95_wallpaper.py` | creates the default system wallpaper (dark gradient, b20+) in the `t95-common` overlay (needs Pillow) |
 | `tools/magisk-boot.sh` | root variant: patches `boot.img` of the signed target files with Magisk, re-signs vbmeta with your AVB key; then run `pack -v` |
 | `tools/t95_axp313_board_dts.py`, `tools/t95_axp313_sys_config.py` | generate `board.dts` and `sys_config.fex` of `configs/t95-axp313` from p2 (+ the stock `sys_config.fex` of that board) |
-| `tools/t95_axp313_xr819_dts.sh` | Wi-Fi XR819 variant of a board folder (`configs/t95-axp313` for H61X-T95MAX-AXP313A-V3.0, `configs/t95-axp806` for b24-xr819): bank PG at 3.3 V, `sdc1` without UHS, `device_type = "btlpm"` (needed by `wireless_switch.ko`) |
+| `tools/t95_axp313_xr819_dts.sh` | Wi-Fi XR819 variant of `configs/t95-axp313` (H61X-T95MAX-AXP313A-V3.0; up to b24 also `configs/t95-axp806` for b24-xr819): bank PG at 3.3 V, `sdc1` without UHS, `device_type = "btlpm"` (needed by `wireless_switch.ko`) |
 
 Comments inside the patches and tools are in Russian (the project was first published on 4PDA).
 
@@ -211,12 +235,13 @@ Clone this repository next to the extracted `H618-Android12-Src` folder:
 ```sh
 git clone https://github.com/well83/t95-h616-android12.git
 cd H618-Android12-Src
-cp -a ../t95-h616-android12/longan .                         # board folders configs/t95-axp806, t95-axp313
+cp -a ../t95-h616-android12/longan .                         # board folders configs/t95-axp806, t95-axp313, t95-h616
 cp -a device/softwinner/apollo/apollo-p2 device/softwinner/apollo/apollo-t95
 cp    device/softwinner/apollo/apollo_p2.mk device/softwinner/apollo/apollo_t95.mk
 bash ../t95-h616-android12/patches/07-kernel-5.4.302/merge-ack-5.4.302.sh longan/kernel/linux-5.4 ~/k302   # kernel 5.4.302
+git -C ~/k302/linux-5.4 am $PWD/../t95-h616-android12/patches/07-kernel-5.4.302/000[4-6]-*.patch   # since b25: 0004-0006
 rsync -a --delete --exclude=.git ~/k302/linux-5.4/ longan/kernel/linux-5.4/
-for p in 03a 03b 04 05 08 09 10 11 13 14 15; do git apply -p1 ../t95-h616-android12/patches/$p-*.patch; done   # 14: git apply only (renames)
+for p in 03a 03b 04 05 08 09 10 11 13 14 15 16 16a 17; do git apply -p1 ../t95-h616-android12/patches/$p-*.patch; done   # 14: git apply only (renames)
 B=device/softwinner/apollo/common/media/bootanimation/bootanimation.zip
 python3 ../t95-h616-android12/tools/t95_bootsound.py $B $B.new -24 && mv $B.new $B   # boot sound -24 dB
 python3 ../t95-h616-android12/tools/t95_wallpaper.py device/softwinner/apollo/t95-common/overlay/frameworks/base/core/res/res
@@ -226,9 +251,9 @@ python3 ../t95-h616-android12/tools/bl31_t95_patch.py longan/device/config/chips
 
 App APKs go in `device/softwinner/apollo/t95-common/apps/<Name>/`. Extract the native libraries from
 each APK into `apps/<Name>/lib/arm64/`; see `apps/Android.mk`, which also lists the SHA-256 of each APK:
-ArcLauncher (built with patch 12; FLauncher with patch 06 up to b19), MaterialFiles 1.7.5 (F-Droid), CromiteWebView
-153.0.8010.37 (arm64 SystemWebView), SmartTube 32.56 stable, VLC 3.7.2 arm64 (F-Droid build), Downloader 2.0.4 (+ `split_config.*`),
-F-Droid 2.0.1.
+ArcLauncher (built with patch 17a; patch 12 for 1.0.10 up to b24; FLauncher with patch 06 up to b19), MaterialFiles 1.7.5 (F-Droid),
+CromiteWebView 153.0.8010.37 (arm64 SystemWebView), SmartTube 32.68 stable, VLC 3.7.2 arm64 (F-Droid build), Downloader 2.0.4
+(+ `split_config.*`), F-Droid 2.0.2.
 
 Keys: put your own `toc_keys` in `vendor/security/toc_keys` (secure boot, vbmeta) and generate your own
 app keys:
@@ -250,14 +275,20 @@ source build/envsetup.sh && lunch apollo_t95axp806-user && make -j10 && pack4dis
 
 Root variant (after the build above): `bash ../t95-h616-android12/tools/magisk-boot.sh Magisk-v30.7.apk && pack -v`.
 
-AXP313A board: apply also `patches/07-kernel-5.4.302/0004-*.patch` and `0005-*.patch` to the kernel, copy the Wi-Fi/BT firmware of
+AXP313A board: the b25 releases use the kernel with 0001-0005 (0006 does nothing there: no `allwinner,auto-power-mode` in its
+device tree). Copy the Wi-Fi/BT firmware of
 that board from its stock `/vendor/etc/firmware` (`fw_bcm43342_ag*.bin`, `nvram_ap6334.txt`, `bcm43342a1.hcd`;
 not included, Broadcom license) into `hardware/aw/wireless/partner/ampak/firmware/ap6334/`, create
 `bin/bl31_t95-axp313.bin` with `tools/bl31_t95_patch.py` (as for t95-axp806), then build with `-b t95-axp313` and
 `lunch apollo_t95axp313-user`. Image: `longan/out/h618_android12_t95-axp313_uart0_secure_v0.img`.
 For H61X-T95MAX-AXP313A-V3.0 (XR819) run `tools/t95_axp313_xr819_dts.sh` on `configs/t95-axp313` before that build
 (keep a copy of the two `board.dts` and restore them afterwards).
-For H616-T95MAX-V4.0 with XR819 (b24-xr819) run the same script on `configs/t95-axp806` before the t95-axp806 build.
+Since b25 the t95-axp806 build covers the H616-T95MAX-V4.0 with XR819 too (no script needed).
+
+Single test image: kernel with 0001-0006, the AXP313A Wi-Fi/BT firmware as above, `bin/bl31_t95-h616.bin` (same tool),
+then build with `-b t95-h616` and `lunch apollo_t95h616-user`. Image: `longan/out/h618_android12_t95-h616_uart0_secure_v0.img`.
+Check in the UART log at boot: `sunxi overlay merged ok` and `kernel fdt: sunxi overlay merged ok` on AXP806 boards,
+`not need merged sunxi overlay` on AXP313A boards.
 
 ### Kernel
 
@@ -273,6 +304,9 @@ ACK branch, not a set of patches (`patches/07-kernel-5.4.302/`):
   - 0003: **fix for the hang after sleep** (see below);
   - AXP313A board only: 0004 (BCM43342 firmware name) and 0005 (`bcmdhd` parameter `oob_wake`, default 0: the
     level-triggered Wi-Fi host-wake IRQ fired as soon as s2idle started and kept CPU0 stuck for minutes).
+  - since b25 (t95-axp806, t95-h616): 0006 (`pinctrl-sunxi`): banks listed in the `allwinner,auto-power-mode` property
+    of the `pio` node and without a real `vcc-pX` supply get their voltage mode from the voltage detected by the SoC
+    (`PIO_POW_VAL`). Bank PG (Wi-Fi SDIO) is 1.8 V with UWE5622/LG642 and 3.3 V with XR819, so one image works with both.
 - The AW tree must be clean (freshly extracted, never built). Apply patch 09 **after** copying the merged
   tree into `longan/kernel/linux-5.4`. When switching between kernel versions, delete
   `longan/out/kernel/{build,staging}` first, otherwise clang crashes on the old config.
@@ -291,6 +325,8 @@ The kernel is adapted to the T95 through the longan board configuration
 
 - `linux-5.4/board.dts` (generated by `tools/t95_board_dts.py`): AXP806 instead of AXP1530, eMMC DDR52,
   gmac1/AC200 (twi3, PA10/11), LEDs PH6/7, VBUS PH8, USB0 host, IR fe02/0x40, OPP, SD card detect PI16.
+  Since b25 (added by hand): bank PG without `vcc-pg-supply`, with `allwinner,auto-power-mode = <0x40>` (kernel 0006),
+  and `device_type = "btlpm"` in `&btlpm` (needed by `wireless_switch.ko` for XR819).
   The compiled dtb was checked against the box's stock `sunxi_t95.dtb`.
 - `sys_config.fex` (`tools/t95_sys_config.py`): DRAM/twi/gpio_bias from stock, AXP806 power.
 - `uboot-board.dts`: boot_clock 1008, AXP806, `sdc_io_1v8=0`. `pack` does **not** merge `sys_config` into
@@ -335,7 +371,7 @@ There is no separate SCP, not even in stock firmware: standby runs entirely insi
 ## Other board revisions
 
 T95 boxes exist with other PMICs (for example AXP313A/AXP1530), RAM and Wi-Fi chips. The AXP313A board now has
-its own folder, `configs/t95-axp313` (see [Tested hardware](#tested-hardware)). A revision is described
+its own folder, `configs/t95-axp313`, and `configs/t95-h616` tests one image for both PMICs (see [Tested hardware](#tested-hardware)). A revision is described
 by its own board folder, like Orange Pi and Radxa do: `longan/device/config/chips/h618/configs/<board>/` with `sys_config.fex`
 (DRAM, PMIC voltages, GPIOs), `linux-5.4/board.dts` (kernel DT) and `uboot-board.dts`, plus a small Android
 product (`apollo_t95<name>.mk` and a device folder like `apollo-t95axp806`; everything else is shared in `t95-common`). The Zero 3 folder `p2` already describes an AXP1530/AXP313A, so it is a good starting point
@@ -352,13 +388,13 @@ running this firmware. If you build your own image, generate your own keys.
 
 ## Licenses
 
-- The board folders `longan/device/config/chips/h618/configs/t95-axp806/` and `t95-axp313/` are derived from the Orange Pi /
+- The board folders `longan/device/config/chips/h618/configs/t95-axp806/`, `t95-axp313/` and `t95-h616/` are derived from the Orange Pi /
   Allwinner BSP configuration (`configs/p2`) and keep the license of those files.
 - Patches to AOSP, the Allwinner BSP and device trees follow the license of the files they modify
   (mostly Apache-2.0; the kernel and the files in `patches/07-kernel-5.4.302/resolved/` are
   GPL-2.0).
-- `patches/06-flauncher-v2025.07.001-t95.patch` is a change to FLauncher and `patches/12-arclauncher-1.0.10-t95.patch`
-  a change to Arc Launcher, both GPL-3.0.
+- `patches/06-flauncher-v2025.07.001-t95.patch` is a change to FLauncher, `patches/12-arclauncher-1.0.10-t95.patch` and
+  `patches/17a-arclauncher-1.2.0-t95.patch` are changes to Arc Launcher, all GPL-3.0.
 - The tools in `tools/` and the documentation are under Apache-2.0 (see [LICENSE](LICENSE)).
 - The apps preinstalled in the image are unmodified (except FLauncher / Arc Launcher) and keep their authors' licenses
   and signatures.
