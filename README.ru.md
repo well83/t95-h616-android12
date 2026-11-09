@@ -208,7 +208,7 @@ USB) находится в ПЗУ процессора, стереть его н
 | `patches/10-b19-t95-axp313.patch` | b19: DocumentsUI (его убирал override `TvdFileManager`), SELinux: приложения читают температуру процессора (`sysfs_thermal`, `sysfs_temp`). Для платы AXP313A: `PRODUCT_BOARD` из `T95_BOARD` (заменено двумя продуктами патча 14), лёгкий сон s2idle (`axp313-s2idle.rc`, `/sys/power/mem_sleep` → `sysfs_power`), BCM43342 в `libhwinfo.c`, `config.txt` AP6334 с ccode XZ/11. Только для тестовых сборок (`T95_LOGGER=1`): сборщик логов `t95log` (dmesg/logcat в `/sdcard/T95_LOG`) |
 | `patches/11-b21-t95.patch` | b20/b21: анимации 0,5x по умолчанию (overlay SettingsProvider `defaults.xml`), Bluetooth LE local privacy только если контроллер умеет LL privacy (`btif_dm.cc`), Arc Launcher вместо FLauncher (`apps/Android.mk`, `apollo_t95.mk`), VLC из F-Droid. Фон создаёт `tools/t95_wallpaper.py` |
 | `patches/12-arclauncher-1.0.10-t95.patch` | [Arc Launcher](https://github.com/meddouribadis/arclauncher) (тег 1.0.10): тёмный фон по умолчанию; с b23 (1.0.10-t95.4) нет «Избранного» по умолчанию (главный экран открывается на All Apps) и подсветка фокуса всегда включена (`FocusHighlightStrategy.alwaysTraditional`). Сборка: Flutter 3.41.9, `flutter build apk --release --flavor play --split-per-abi --target-platform android-arm64` (во flavor `play` нет самообновления) |
-| `patches/07-kernel-5.4.302/` | ядро 5.4.125 → 5.4.302 (с b18): скрипт merge ACK, разрешённые конфликты, 0001–0003 (0003 — исправление зависания после сна), только плата AXP313A: 0004 — BCM43342 в bcmdhd, 0005 — host-wake Wi-Fi больше не будит систему (`oob_wake=0`, исправляет s2idle); с b25 (t95-axp806, t95-h616): 0006 — режим напряжения банков выводов без `vcc-pX` по `PIO_POW_VAL`. См. [Ядро](#ядро) |
+| `patches/07-kernel-5.4.302/` | ядро 5.4.125 → 5.4.302 (с b18): скрипт merge ACK, разрешённые конфликты, 0001–0003 (0003 — исправление зависания после сна), только плата AXP313A: 0004 — BCM43342 в bcmdhd, 0005 — host-wake Wi-Fi больше не будит систему (`oob_wake=0`, исправляет s2idle); с b25 (t95-axp806, t95-h616): 0006 — режим напряжения банков выводов без `vcc-pX` по `PIO_POW_VAL`; с u4 (t95-h616): 0007 — возвращена проверка `CAP_SYS_RAWIO` для `/dev/mem` и `/dev/port`, 0008 — драйвер `ssv6x5x` (Wi-Fi iComm SV6256P). См. [Ядро](#ядро) |
 | `patches/13-b23-t95.patch` | b23: менеджер фоновых процессов Allwinner без блокировок (`device/softwinner/common/config/awbms_config`: `blockBroadcast`, `skipService` = false) — приложения пользователя получают `BOOT_COMPLETED` и могут запускать сервисы; комментарий Arc в `apps/Android.mk` |
 | `patches/14-split-boards-t95axp806-t95axp313.patch` | b23: по продукту на плату. `apollo_t95.mk` → `t95-common/t95_product.mk` (общий), новые `apollo_t95axp806.mk` / `apollo_t95axp313.mk`, папки устройств `apollo-t95axp806` / `apollo-t95axp313` (BoardConfig, `system/`, camera); apps, overlay, sepolicy, `t95/`, `t95log/` перенесены в `t95-common`. Содержит переименования: применять через `git apply` |
 | `patches/15-b24-fd655-boot.patch` | b24: передний дисплей показывает `boot` через несколько секунд после включения, как стоковая прошивка (`fd655.rc`: `on early-init`); раньше он был тёмным до запуска службы часов (10–15 с) |
@@ -239,7 +239,7 @@ cp -a ../t95-h616-android12/longan .                         # папки пла
 cp -a device/softwinner/apollo/apollo-p2 device/softwinner/apollo/apollo-t95
 cp    device/softwinner/apollo/apollo_p2.mk device/softwinner/apollo/apollo_t95.mk
 bash ../t95-h616-android12/patches/07-kernel-5.4.302/merge-ack-5.4.302.sh longan/kernel/linux-5.4 ~/k302   # ядро 5.4.302
-git -C ~/k302/linux-5.4 am $PWD/../t95-h616-android12/patches/07-kernel-5.4.302/000[4-6]-*.patch   # с b25: 0004-0006
+git -C ~/k302/linux-5.4 am $PWD/../t95-h616-android12/patches/07-kernel-5.4.302/000[4-8]-*.patch   # с b25: 0004-0006, с u4: 0007-0008
 rsync -a --delete --exclude=.git ~/k302/linux-5.4/ longan/kernel/linux-5.4/
 for p in 03a 03b 04 05 08 09 10 11 13 14 15 16 16a 17; do git apply -p1 ../t95-h616-android12/patches/$p-*.patch; done   # 14: только git apply (переименования)
 B=device/softwinner/apollo/common/media/bootanimation/bootanimation.zip
@@ -286,7 +286,7 @@ Wi-Fi/BT этой платы из её стокового `/vendor/etc/firmware`
 (сохраните копию двух `board.dts` и верните их после сборки).
 С b25 сборка t95-axp806 покрывает и H616-T95MAX-V4.0 с XR819 (скрипт не нужен).
 
-Единый тестовый образ: ядро с 0001-0006, прошивки Wi-Fi/BT платы AXP313A как выше, `bin/bl31_t95-h616.bin` (тот же
+Единый тестовый образ: ядро с 0001-0006 (с u4: 0001-0008), прошивки Wi-Fi/BT платы AXP313A как выше, `bin/bl31_t95-h616.bin` (тот же
 инструмент), затем собирайте с `-b t95-h616` и `lunch apollo_t95h616-user`. Образ: `longan/out/h618_android12_t95-h616_uart0_secure_v0.img`.
 Проверка по логу UART при загрузке: `sunxi overlay merged ok` и `kernel fdt: sunxi overlay merged ok` на платах с AXP806,
 `not need merged sunxi overlay` на платах с AXP313A.
@@ -308,6 +308,10 @@ ACK, а не патчами (`patches/07-kernel-5.4.302/`):
   - с b25 (t95-axp806, t95-h616): 0006 (`pinctrl-sunxi`): банки, перечисленные в свойстве `allwinner,auto-power-mode`
     узла `pio` и без настоящего питания `vcc-pX`, получают режим напряжения по напряжению, которое определяет процессор
     (`PIO_POW_VAL`). Банк PG (SDIO Wi-Fi) — 1,8 В с UWE5622/LG642 и 3,3 В с XR819, поэтому один образ работает с обоими.
+  - с u4 (t95-h616): 0007 (`drivers/char/mem.c`): в BSP была закомментирована проверка `CAP_SYS_RAWIO` для
+    `/dev/mem` и `/dev/port`; 0008: драйвер `ssv6x5x` для SDIO Wi-Fi iComm SV6256P (SSV6006C) (`CONFIG_SSV6X5X=m`),
+    на основе cdhigh/armbian_sv6256p (ядро 6.x), перенесён на 5.4, с кодом Allwinner для питания/rescan. Android-часть
+    (libhwinfo, `libwifi-hal-ssv`, прошивка и `ssv6x5x-wifi.cfg`) уже была в BSP.
 - Исходники ядра AW должны быть чистыми (только что распакованными, ни разу не собранными). Патч 09 накладывать
   **после** копирования исходников в `longan/kernel/linux-5.4`. При смене версии ядра сначала удалить
   `longan/out/kernel/{build,staging}`, иначе clang падает на старом конфиге.

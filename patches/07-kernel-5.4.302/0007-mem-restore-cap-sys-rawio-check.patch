@@ -1,0 +1,22 @@
+From: well83 <well83@users.noreply.github.com>
+Subject: [PATCH] mem: restore CAP_SYS_RAWIO check in open_port()
+
+The Allwinner/Orange Pi BSP commented out the CAP_SYS_RAWIO check, so any
+process able to open /dev/mem or /dev/port was not checked for raw I/O
+capability. Banana Pi and Walnut Pi BSPs restore it; nothing in the T95
+image relies on it (root tools keep CAP_SYS_RAWIO).
+
+---
+--- a/drivers/char/mem.c
++++ b/drivers/char/mem.c
+@@ -849,8 +849,8 @@
+ {
+ 	int rc;
+ 
+-//	if (!capable(CAP_SYS_RAWIO))
+-//		return -EPERM;
++	if (!capable(CAP_SYS_RAWIO))
++		return -EPERM;
+ 
+ 	rc = security_locked_down(LOCKDOWN_DEV_MEM);
+ 	if (rc)

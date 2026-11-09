@@ -218,7 +218,7 @@ più la scheda di prova dell'immagine unica **t95-h616** / **apollo_t95h616**, c
 | `patches/10-b19-t95-axp313.patch` | b19: DocumentsUI (lo toglieva l'override di `TvdFileManager`), SELinux: le app leggono la temperatura della CPU (`sysfs_thermal`, `sysfs_temp`). Per la scheda AXP313A: `PRODUCT_BOARD` da `T95_BOARD` (sostituito dai due prodotti della patch 14), sospensione leggera s2idle (`axp313-s2idle.rc`, `/sys/power/mem_sleep` → `sysfs_power`), BCM43342 in `libhwinfo.c`, `config.txt` AP6334 con ccode XZ/11. Solo build di prova (`T95_LOGGER=1`): raccoglitore di log `t95log` (dmesg/logcat in `/sdcard/T95_LOG`) |
 | `patches/11-b21-t95.patch` | b20/b21: animazioni 0,5x di default (overlay SettingsProvider `defaults.xml`), privacy locale Bluetooth LE solo se il controller ha la LL privacy (`btif_dm.cc`), Arc Launcher al posto di FLauncher (`apps/Android.mk`, `apollo_t95.mk`), VLC da F-Droid. Lo sfondo lo crea `tools/t95_wallpaper.py` |
 | `patches/12-arclauncher-1.0.10-t95.patch` | [Arc Launcher](https://github.com/meddouribadis/arclauncher) (tag 1.0.10): sfondo scuro di default; dalla b23 (1.0.10-t95.4) niente Preferiti di default (la home si apre su All Apps) ed evidenziazione del focus sempre attiva (`FocusHighlightStrategy.alwaysTraditional`). Build: Flutter 3.41.9, `flutter build apk --release --flavor play --split-per-abi --target-platform android-arm64` (il flavor `play` non ha l'auto-aggiornamento) |
-| `patches/07-kernel-5.4.302/` | kernel 5.4.125 → 5.4.302 (dalla b18): script di merge ACK, conflitti risolti, 0001–0003 (0003 = correzione del blocco dopo la sospensione), solo scheda AXP313A: 0004 = BCM43342 nel bcmdhd, 0005 = l'host-wake del Wi-Fi non sveglia più il sistema (`oob_wake=0`, corregge s2idle); dalla b25 (t95-axp806, t95-h616): 0006 = modalità di tensione dei banchi di pin senza `vcc-pX` da `PIO_POW_VAL`. Vedi [Kernel](#kernel) |
+| `patches/07-kernel-5.4.302/` | kernel 5.4.125 → 5.4.302 (dalla b18): script di merge ACK, conflitti risolti, 0001–0003 (0003 = correzione del blocco dopo la sospensione), solo scheda AXP313A: 0004 = BCM43342 nel bcmdhd, 0005 = l'host-wake del Wi-Fi non sveglia più il sistema (`oob_wake=0`, corregge s2idle); dalla b25 (t95-axp806, t95-h616): 0006 = modalità di tensione dei banchi di pin senza `vcc-pX` da `PIO_POW_VAL`; dalla u4 (t95-h616): 0007 = ripristinato il controllo `CAP_SYS_RAWIO` per `/dev/mem` e `/dev/port`, 0008 = driver `ssv6x5x` (Wi-Fi iComm SV6256P). Vedi [Kernel](#kernel) |
 | `patches/13-b23-t95.patch` | b23: gestore Allwinner delle app in background senza blocchi (`device/softwinner/common/config/awbms_config`: `blockBroadcast`, `skipService` a false), così le app dell'utente ricevono `BOOT_COMPLETED` e possono avviare servizi; commento di Arc in `apps/Android.mk` |
 | `patches/14-split-boards-t95axp806-t95axp313.patch` | b23: un prodotto per scheda. `apollo_t95.mk` → `t95-common/t95_product.mk` (comune), nuovi `apollo_t95axp806.mk` / `apollo_t95axp313.mk`, cartelle dispositivo `apollo-t95axp806` / `apollo-t95axp313` (BoardConfig, `system/`, camera); apps, overlay, sepolicy, `t95/`, `t95log/` spostati in `t95-common`. Contiene rinomine: va applicata con `git apply` |
 | `patches/15-b24-fd655-boot.patch` | b24: il display frontale mostra `boot` pochi secondi dopo l'accensione, come il firmware stock (`fd655.rc`: `on early-init`); prima restava spento finché non partiva il servizio orologio (10–15 s) |
@@ -251,7 +251,7 @@ cp -a ../t95-h616-android12/longan .                         # cartelle delle sc
 cp -a device/softwinner/apollo/apollo-p2 device/softwinner/apollo/apollo-t95
 cp    device/softwinner/apollo/apollo_p2.mk device/softwinner/apollo/apollo_t95.mk
 bash ../t95-h616-android12/patches/07-kernel-5.4.302/merge-ack-5.4.302.sh longan/kernel/linux-5.4 ~/k302   # kernel 5.4.302
-git -C ~/k302/linux-5.4 am $PWD/../t95-h616-android12/patches/07-kernel-5.4.302/000[4-6]-*.patch   # dalla b25: 0004-0006
+git -C ~/k302/linux-5.4 am $PWD/../t95-h616-android12/patches/07-kernel-5.4.302/000[4-8]-*.patch   # dalla b25: 0004-0006, dalla u4: 0007-0008
 rsync -a --delete --exclude=.git ~/k302/linux-5.4/ longan/kernel/linux-5.4/
 for p in 03a 03b 04 05 08 09 10 11 13 14 15 16 16a 17; do git apply -p1 ../t95-h616-android12/patches/$p-*.patch; done   # 14: solo git apply (rinomine)
 B=device/softwinner/apollo/common/media/bootanimation/bootanimation.zip
@@ -297,7 +297,7 @@ Per H61X-T95MAX-AXP313A-V3.0 (XR819) esegui `tools/t95_axp313_xr819_dts.sh` su `
 (tieni una copia dei due `board.dts` e rimettili dopo).
 Dalla b25 la build t95-axp806 copre anche la H616-T95MAX-V4.0 con XR819 (niente script).
 
-Immagine unica di prova: kernel con 0001-0006, i firmware Wi-Fi/BT della scheda AXP313A come sopra, `bin/bl31_t95-h616.bin`
+Immagine unica di prova: kernel con 0001-0006 (dalla u4: 0001-0008), i firmware Wi-Fi/BT della scheda AXP313A come sopra, `bin/bl31_t95-h616.bin`
 (stesso strumento), poi compila con `-b t95-h616` e `lunch apollo_t95h616-user`. Immagine: `longan/out/h618_android12_t95-h616_uart0_secure_v0.img`.
 Controllo nel log UART all'avvio: `sunxi overlay merged ok` e `kernel fdt: sunxi overlay merged ok` sulle schede con AXP806,
 `not need merged sunxi overlay` sulle schede con AXP313A.
@@ -319,6 +319,10 @@ La build di rilascio (dalla b18) usa il kernel **5.4.302**. Il kernel Allwinner 
   - dalla b25 (t95-axp806, t95-h616): 0006 (`pinctrl-sunxi`): i banchi elencati nella proprietà `allwinner,auto-power-mode`
     del nodo `pio` e senza una vera alimentazione `vcc-pX` prendono la modalità di tensione dalla tensione rilevata dal SoC
     (`PIO_POW_VAL`). Il banco PG (SDIO Wi-Fi) è a 1,8 V con UWE5622/LG642 e a 3,3 V con XR819, così una sola immagine va con entrambi.
+  - dalla u4 (t95-h616): 0007 (`drivers/char/mem.c`): il BSP aveva commentato il controllo `CAP_SYS_RAWIO` per
+    `/dev/mem` e `/dev/port`; 0008: driver `ssv6x5x` per il Wi-Fi SDIO iComm SV6256P (SSV6006C) (`CONFIG_SSV6X5X=m`),
+    basato su cdhigh/armbian_sv6256p (kernel 6.x) e portato all'indietro sulla 5.4, con il codice Allwinner per
+    alimentazione/rescan. La parte Android (libhwinfo, `libwifi-hal-ssv`, firmware e `ssv6x5x-wifi.cfg`) era già nel BSP.
 - L'albero AW deve essere pulito (appena estratto, mai compilato). La patch 09 va applicata **dopo** aver
   copiato l'albero in `longan/kernel/linux-5.4`. Quando si cambia versione del kernel, cancellare prima
   `longan/out/kernel/{build,staging}`, altrimenti clang va in crash sulla vecchia configurazione.

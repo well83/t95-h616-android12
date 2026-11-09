@@ -206,7 +206,7 @@ plus the single-image test board **t95-h616** / **apollo_t95h616**, which share 
 | `patches/10-b19-t95-axp313.patch` | b19: DocumentsUI (the `TvdFileManager` override removed it), SELinux: apps read the CPU temperature (`sysfs_thermal`, `sysfs_temp`). For the AXP313A board: `PRODUCT_BOARD` from `T95_BOARD` (replaced by the two products of patch 14), light sleep s2idle (`axp313-s2idle.rc`, `/sys/power/mem_sleep` → `sysfs_power`), BCM43342 in `libhwinfo.c`, AP6334 `config.txt` with ccode XZ/11. Test builds only (`T95_LOGGER=1`): log collector `t95log` (dmesg/logcat to `/sdcard/T95_LOG`) |
 | `patches/11-b21-t95.patch` | b20/b21: animations 0.5x by default (SettingsProvider overlay `defaults.xml`), Bluetooth LE local privacy only if the controller supports LL privacy (`btif_dm.cc`), Arc Launcher in place of FLauncher (`apps/Android.mk`, `apollo_t95.mk`), VLC from F-Droid. The wallpaper is made by `tools/t95_wallpaper.py` |
 | `patches/12-arclauncher-1.0.10-t95.patch` | [Arc Launcher](https://github.com/meddouribadis/arclauncher) (tag 1.0.10): dark default background; since b23 (1.0.10-t95.4) no default Favorites (the home screen opens on All Apps) and the focus highlight always on (`FocusHighlightStrategy.alwaysTraditional`). Build: Flutter 3.41.9, `flutter build apk --release --flavor play --split-per-abi --target-platform android-arm64` (the `play` flavor has no self-updater) |
-| `patches/07-kernel-5.4.302/` | kernel 5.4.125 → 5.4.302 (since b18): ACK merge script, resolved conflicts, 0001–0003 (0003 = fix for the hang after sleep), AXP313A board only: 0004 = BCM43342 in bcmdhd, 0005 = Wi-Fi host-wake no longer a wakeup source (`oob_wake=0`, fixes s2idle); since b25 (t95-axp806, t95-h616): 0006 = voltage mode of pin banks without `vcc-pX` from `PIO_POW_VAL`. See [Kernel](#kernel) |
+| `patches/07-kernel-5.4.302/` | kernel 5.4.125 → 5.4.302 (since b18): ACK merge script, resolved conflicts, 0001–0003 (0003 = fix for the hang after sleep), AXP313A board only: 0004 = BCM43342 in bcmdhd, 0005 = Wi-Fi host-wake no longer a wakeup source (`oob_wake=0`, fixes s2idle); since b25 (t95-axp806, t95-h616): 0006 = voltage mode of pin banks without `vcc-pX` from `PIO_POW_VAL`; since u4 (t95-h616): 0007 = `CAP_SYS_RAWIO` check restored for `/dev/mem` and `/dev/port`, 0008 = `ssv6x5x` driver (iComm SV6256P Wi-Fi). See [Kernel](#kernel) |
 | `patches/13-b23-t95.patch` | b23: Allwinner background manager without blocks (`device/softwinner/common/config/awbms_config`: `blockBroadcast`, `skipService` false), so user apps receive `BOOT_COMPLETED` and can start services; Arc comment in `apps/Android.mk` |
 | `patches/14-split-boards-t95axp806-t95axp313.patch` | b23: one product per board. `apollo_t95.mk` → `t95-common/t95_product.mk` (shared), new `apollo_t95axp806.mk` / `apollo_t95axp313.mk`, device folders `apollo-t95axp806` / `apollo-t95axp313` (BoardConfig, `system/`, camera), apps, overlay, sepolicy, `t95/`, `t95log/` moved to `t95-common`. Contains renames: apply it with `git apply` |
 | `patches/15-b24-fd655-boot.patch` | b24: the front display shows `boot` a few seconds after power-on, as the stock firmware does (`fd655.rc`: `on early-init`); before, it stayed dark until the clock service started (10–15 s) |
@@ -239,7 +239,7 @@ cp -a ../t95-h616-android12/longan .                         # board folders con
 cp -a device/softwinner/apollo/apollo-p2 device/softwinner/apollo/apollo-t95
 cp    device/softwinner/apollo/apollo_p2.mk device/softwinner/apollo/apollo_t95.mk
 bash ../t95-h616-android12/patches/07-kernel-5.4.302/merge-ack-5.4.302.sh longan/kernel/linux-5.4 ~/k302   # kernel 5.4.302
-git -C ~/k302/linux-5.4 am $PWD/../t95-h616-android12/patches/07-kernel-5.4.302/000[4-6]-*.patch   # since b25: 0004-0006
+git -C ~/k302/linux-5.4 am $PWD/../t95-h616-android12/patches/07-kernel-5.4.302/000[4-8]-*.patch   # since b25: 0004-0006, since u4: 0007-0008
 rsync -a --delete --exclude=.git ~/k302/linux-5.4/ longan/kernel/linux-5.4/
 for p in 03a 03b 04 05 08 09 10 11 13 14 15 16 16a 17; do git apply -p1 ../t95-h616-android12/patches/$p-*.patch; done   # 14: git apply only (renames)
 B=device/softwinner/apollo/common/media/bootanimation/bootanimation.zip
@@ -285,7 +285,7 @@ For H61X-T95MAX-AXP313A-V3.0 (XR819) run `tools/t95_axp313_xr819_dts.sh` on `con
 (keep a copy of the two `board.dts` and restore them afterwards).
 Since b25 the t95-axp806 build covers the H616-T95MAX-V4.0 with XR819 too (no script needed).
 
-Single test image: kernel with 0001-0006, the AXP313A Wi-Fi/BT firmware as above, `bin/bl31_t95-h616.bin` (same tool),
+Single test image: kernel with 0001-0006 (since u4: 0001-0008), the AXP313A Wi-Fi/BT firmware as above, `bin/bl31_t95-h616.bin` (same tool),
 then build with `-b t95-h616` and `lunch apollo_t95h616-user`. Image: `longan/out/h618_android12_t95-h616_uart0_secure_v0.img`.
 Check in the UART log at boot: `sunxi overlay merged ok` and `kernel fdt: sunxi overlay merged ok` on AXP806 boards,
 `not need merged sunxi overlay` on AXP313A boards.
@@ -307,6 +307,10 @@ ACK branch, not a set of patches (`patches/07-kernel-5.4.302/`):
   - since b25 (t95-axp806, t95-h616): 0006 (`pinctrl-sunxi`): banks listed in the `allwinner,auto-power-mode` property
     of the `pio` node and without a real `vcc-pX` supply get their voltage mode from the voltage detected by the SoC
     (`PIO_POW_VAL`). Bank PG (Wi-Fi SDIO) is 1.8 V with UWE5622/LG642 and 3.3 V with XR819, so one image works with both.
+  - since u4 (t95-h616): 0007 (`drivers/char/mem.c`): the BSP had commented out the `CAP_SYS_RAWIO` check for
+    `/dev/mem` and `/dev/port`; 0008: `ssv6x5x` driver for the iComm SV6256P (SSV6006C) SDIO Wi-Fi (`CONFIG_SSV6X5X=m`),
+    based on cdhigh/armbian_sv6256p (kernel 6.x) and backported to 5.4, with the Allwinner power/rescan glue. The
+    Android side (libhwinfo, `libwifi-hal-ssv`, firmware and `ssv6x5x-wifi.cfg`) was already in the BSP.
 - The AW tree must be clean (freshly extracted, never built). Apply patch 09 **after** copying the merged
   tree into `longan/kernel/linux-5.4`. When switching between kernel versions, delete
   `longan/out/kernel/{build,staging}` first, otherwise clang crashes on the old config.
